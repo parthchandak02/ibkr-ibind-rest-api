@@ -131,8 +131,27 @@ def get_orders():
     """Get all orders for the user."""
     try:
         client = get_ibkr_client(TRADING_ENV)
-        orders = client.live_orders().data
-        return jsonify({"data": orders})
+        response = client.live_orders()
+
+        # Check if we have a valid response with orders
+        if response and hasattr(response, 'data') and isinstance(response.data, dict):
+            orders = response.data.get('orders', [])
+            return jsonify({
+                "status": "ok",
+                "data": {
+                    "orders": orders,
+                    "snapshot": response.data.get('snapshot', False)
+                }
+            })
+        else:
+            return jsonify({
+                "status": "ok",
+                "data": {
+                    "orders": [],
+                    "snapshot": False
+                }
+            })
+
     except Exception as e:
         logger.error(f"Error getting orders: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
