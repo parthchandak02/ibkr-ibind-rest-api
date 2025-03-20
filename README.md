@@ -134,7 +134,8 @@ DELETE /order/{order_id}
 ```http
 POST /percentage-limit-order/{symbol}
 ```
-Body:
+
+For SELL orders:
 ```json
 {
   "side": "SELL",
@@ -143,6 +144,27 @@ Body:
   "time_in_force": "GTC"
 }
 ```
+
+For BUY orders:
+```json
+{
+  "side": "BUY",
+  "percentage_below_market": 10,
+  "dollar_amount": 50,
+  "time_in_force": "GTC"
+}
+```
+
+Parameters:
+- `side`: "BUY" or "SELL" (defaults to "SELL")
+- `percentage_above_market`: For SELL orders, percentage above current market price
+- `percentage_below_market`: For BUY orders, percentage below current market price
+- `percentage_of_position`: For SELL orders, percentage of current position to sell
+- `dollar_amount`: For BUY orders, amount in USD to buy
+- `time_in_force`: Order validity (e.g., "GTC", "DAY")
+
+Returns:
+- JSON with order details or error message
 
 ## Security Best Practices
 
