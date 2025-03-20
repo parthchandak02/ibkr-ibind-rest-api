@@ -40,11 +40,7 @@ A RESTful API wrapper for Interactive Brokers (IBKR) using the IBIND library.
    ```
 
 4. Configure your environment:
-   - Copy the example configuration file:
-     ```bash
-     cp config.json.example config.json
-     ```
-   - Edit `config.json` with your IBKR credentials and settings
+   - Create a `config.json` file with your IBKR credentials and settings
    - Place your OAuth key files in the appropriate directories:
      - `paper_trading_oauth_files/` for paper trading
      - `live_trading_oauth_files/` for live trading
@@ -65,6 +61,8 @@ The application uses a single `config.json` file for all configuration settings:
 
 ```json
 {
+  "name": "IBKR Configuration",
+  "description": "Combined configuration for paper and live trading",
   "paper_trading": {
     "oauth": {
       "consumer_key": "your_consumer_key",
@@ -76,8 +74,11 @@ The application uses a single `config.json` file for all configuration settings:
       "realm": "limited_poa"
     },
     "api": {
-      "host": "https://www.ibkrstaging.com/",
-      "api_base": "https://www.ibkrstaging.com/v1/api"
+      "use_paper_trading": true,
+      "paper_trading_host": "https://www.ibkrstaging.com/",
+      "paper_trading_api_base": "https://www.ibkrstaging.com/v1/api",
+      "live_trading_host": "https://api.ibkr.com/",
+      "live_trading_api_base": "https://api.ibkr.com/v1/api"
     }
   },
   "live_trading": {
@@ -85,8 +86,11 @@ The application uses a single `config.json` file for all configuration settings:
       // Similar structure as paper_trading
     },
     "api": {
-      "host": "https://api.ibkr.com/",
-      "api_base": "https://api.ibkr.com/v1/api"
+      "use_paper_trading": false,
+      "paper_trading_host": "https://www.ibkrstaging.com/",
+      "paper_trading_api_base": "https://www.ibkrstaging.com/v1/api",
+      "live_trading_host": "https://api.ibkr.com/",
+      "live_trading_api_base": "https://api.ibkr.com/v1/api"
     }
   },
   "application": {
@@ -104,6 +108,7 @@ While most configuration is handled through `config.json`, some runtime settings
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `IBIND_TRADING_ENV` | Trading environment (paper/live) | paper_trading |
+| `IBIND_USE_OAUTH` | Enable OAuth authentication | true |
 | `IBIND_ACCOUNT_ID` | Your IBKR account ID | None |
 
 ## API Endpoints
@@ -123,10 +128,9 @@ Content-Type: application/json
 }
 ```
 
-### Market Data
+### Account Information
 ```http
-GET /market-data/{symbol}
-GET /market-data/{symbol}/history
+GET /account
 ```
 
 ### Orders
@@ -135,18 +139,7 @@ GET /orders
 GET /order/{order_id}
 POST /order
 POST /percentage-limit-order/{symbol}
-```
-
-### Positions
-```http
-GET /positions
-GET /position/{symbol}
-```
-
-### Portfolio
-```http
-GET /portfolio
-GET /portfolio/ledger
+DELETE /order/{order_id}
 ```
 
 ## Security Best Practices
