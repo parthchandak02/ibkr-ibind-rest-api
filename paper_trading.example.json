@@ -1,0 +1,12 @@
+{
+  "account_id": "YOUR_ACCOUNT_ID",
+  "oauth_config": {
+    "consumer_key": "YOUR_CONSUMER_KEY",
+    "access_token": "YOUR_ACCESS_TOKEN",
+    "access_token_secret": "YOUR_ACCESS_TOKEN_SECRET"
+  },
+  "use_oauth": true,
+  "gateway_host": "api.ibkr.com",
+  "gateway_port": 443,
+  "client_portal_url": "https://www.interactivebrokers.com/portal.proxy"
+}

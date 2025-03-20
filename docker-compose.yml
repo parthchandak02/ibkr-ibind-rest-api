@@ -1,0 +1,43 @@
+services:
+  ibkr-api:
+    build: .
+    container_name: ibkr-api
+    ports:
+      - "5001:5001"
+    volumes:
+      # Mount the configuration directories to allow for easy updates
+      - ./paper_trading.json:/app/paper_trading.json:ro
+      - ./live_trading.json:/app/live_trading.json:ro
+      - ./paper_trading_oauth_files:/app/paper_trading_oauth_files:ro
+      - ./live_trading_oauth_files:/app/live_trading_oauth_files:ro
+    environment:
+      # Example environment variables, can be modified as needed
+      - IBIND_TRADING_ENV=live_trading
+      - IBIND_USE_OAUTH=true
+      # Uncomment if you want to set account ID manually
+      # - IBIND_ACCOUNT_ID=your_account_id
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Set resource limits to prevent container from using too many resources
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 128M
+
+# Use named volumes for persistent data (optional)
+# volumes:
+#   oauth-data:
