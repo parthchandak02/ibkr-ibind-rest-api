@@ -1,101 +1,110 @@
-# IBKR API Application
+# IBKR REST API
 
-A robust REST API application for accessing Interactive Brokers (IBKR) trading services, providing a simple interface for trading and account management.
+A RESTful API wrapper for Interactive Brokers (IBKR) using the IBIND library.
 
 ## Features
 
-- 🔐 Secure OAuth-based authentication with IBKR
-- 🔄 Automatic connection management and retry mechanism
+- 🔒 Secure OAuth 1.0a authentication
 - 📊 Support for both paper and live trading environments
-- 📈 Complete order management (view, place, cancel)
-- 💼 Account information and portfolio tracking
-- 🐳 Dockerized deployment for easy setup
-- ⚡ Rate limiting and security features
-- 📝 Comprehensive error handling and logging
+- 🔄 Real-time market data and order management
+- 📈 Support for various order types (market, limit, percentage-based)
+- 🎯 Position and portfolio management
+- 🔍 Advanced market data queries
+- 🛡️ Rate limiting and error handling
+- 📝 Comprehensive logging
 
 ## Prerequisites
 
 - Python 3.8 or higher
-- Docker and Docker Compose (optional, for containerized deployment)
-- IBKR Account with API access enabled
-- OAuth credentials from IBKR
+- IBKR Account (paper or live)
+- IBKR API credentials
+- Docker (optional, for containerized deployment)
 
 ## Quick Start
 
-### Using Docker (Recommended)
-
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
-   cd ibind_rest_api
+   git clone https://github.com/yourusername/ibkr-ibind-rest-api.git
+   cd ibkr-ibind-rest-api
    ```
 
-2. Set up configuration files:
-   ```bash
-   cp paper_trading.example.json paper_trading.json
-   cp live_trading.example.json live_trading.json
-   ```
-
-3. Create OAuth directories:
-   ```bash
-   mkdir -p paper_trading_oauth_files
-   mkdir -p live_trading_oauth_files
-   ```
-
-4. Place your OAuth key files in the respective directories according to IBKR's documentation.
-
-5. Start the application:
-   ```bash
-   docker-compose up -d
-   ```
-
-The API will be available at [http://localhost:5001](http://localhost:5001)
-
-### Local Installation
-
-1. Create and activate a virtual environment:
+2. Create and activate a virtual environment:
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-2. Install dependencies:
+3. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
 
-3. Set up configuration files and OAuth directories as described above.
+4. Configure your environment:
+   - Copy the example configuration file:
+     ```bash
+     cp config.json.example config.json
+     ```
+   - Edit `config.json` with your IBKR credentials and settings
+   - Place your OAuth key files in the appropriate directories:
+     - `paper_trading_oauth_files/` for paper trading
+     - `live_trading_oauth_files/` for live trading
 
-4. Set environment variables (optional):
-   ```bash
-   export IBIND_ACCOUNT_ID=your_account_id
-   export IBIND_USE_OAUTH=true
-   export IBIND_TRADING_ENV=paper_trading  # or live_trading
-   ```
-
-5. Run the API:
+5. Start the API server:
    ```bash
    python api.py
    ```
 
+   Or using Docker:
+   ```bash
+   docker compose up -d
+   ```
+
 ## Configuration
+
+The application uses a single `config.json` file for all configuration settings:
+
+```json
+{
+  "paper_trading": {
+    "oauth": {
+      "consumer_key": "your_consumer_key",
+      "access_token": "your_access_token",
+      "access_token_secret": "your_access_token_secret",
+      "dh_prime": "your_dh_prime",
+      "encryption_key_path": "paper_trading_oauth_files/private_encryption.pem",
+      "signature_key_path": "paper_trading_oauth_files/private_signature.pem",
+      "realm": "limited_poa"
+    },
+    "api": {
+      "host": "https://www.ibkrstaging.com/",
+      "api_base": "https://www.ibkrstaging.com/v1/api"
+    }
+  },
+  "live_trading": {
+    "oauth": {
+      // Similar structure as paper_trading
+    },
+    "api": {
+      "host": "https://api.ibkr.com/",
+      "api_base": "https://api.ibkr.com/v1/api"
+    }
+  },
+  "application": {
+    "log_level": "INFO",
+    "cache_timeout": 300,
+    "auto_refresh": true
+  }
+}
+```
 
 ### Environment Variables
 
+While most configuration is handled through `config.json`, some runtime settings can be controlled via environment variables:
+
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `IBIND_ACCOUNT_ID` | Your IBKR account ID | Auto-detected |
-| `IBIND_USE_OAUTH` | Enable OAuth authentication | true |
 | `IBIND_TRADING_ENV` | Trading environment (paper/live) | paper_trading |
-
-### Rate Limits
-
-The API implements rate limiting to prevent abuse:
-
-- Default: 200 requests per day, 50 per hour
-- Health check: 5 requests per minute
-- Account info: 30 requests per minute
-- Order operations: 10 requests per minute
+| `IBIND_ACCOUNT_ID` | Your IBKR account ID | None |
 
 ## API Endpoints
 
@@ -103,142 +112,92 @@ The API implements rate limiting to prevent abuse:
 ```http
 GET /health
 ```
-Returns the health status of the API and IBKR connection.
 
 ### Switch Environment
 ```http
 POST /switch-environment
-```
-Body:
-```json
+Content-Type: application/json
+
 {
   "environment": "paper_trading"  // or "live_trading"
 }
 ```
 
-### Account Information
+### Market Data
 ```http
-GET /account
+GET /market-data/{symbol}
+GET /market-data/{symbol}/history
 ```
-Returns account details, ledger information, and current positions.
 
-### Orders Management
+### Orders
 ```http
 GET /orders
 GET /order/{order_id}
 POST /order
-DELETE /order/{order_id}
-```
-
-### Percentage-Based Orders
-```http
 POST /percentage-limit-order/{symbol}
 ```
 
-For SELL orders:
-```json
-{
-  "side": "SELL",
-  "percentage_above_market": 10,
-  "percentage_of_position": 10,
-  "time_in_force": "GTC"
-}
+### Positions
+```http
+GET /positions
+GET /position/{symbol}
 ```
 
-For BUY orders:
-```json
-{
-  "side": "BUY",
-  "percentage_below_market": 10,
-  "dollar_amount": 50,
-  "time_in_force": "GTC"
-}
+### Portfolio
+```http
+GET /portfolio
+GET /portfolio/ledger
 ```
-
-Parameters:
-- `side`: "BUY" or "SELL" (defaults to "SELL")
-- `percentage_above_market`: For SELL orders, percentage above current market price
-- `percentage_below_market`: For BUY orders, percentage below current market price
-- `percentage_of_position`: For SELL orders, percentage of current position to sell
-- `dollar_amount`: For BUY orders, amount in USD to buy
-- `time_in_force`: Order validity (e.g., "GTC", "DAY")
-
-Returns:
-- JSON with order details or error message
 
 ## Security Best Practices
 
-1. **OAuth Key Management**
-   - Never commit OAuth files to version control
-   - Store keys securely in production environments
-   - Rotate keys regularly
+1. **Credential Management**
+   - Store credentials securely in production environments
+   - Use environment variables for sensitive data
+   - Never commit credentials to version control
 
 2. **Environment Separation**
-   - Use separate configurations for paper and live trading
-   - Keep production credentials secure
+   - Use separate credentials for paper and live trading
+   - Keep OAuth keys in secure locations
+   - Use different API endpoints for paper and live environments
 
-3. **API Security**
-   - Use HTTPS in production
-   - Implement proper authentication
-   - Monitor API usage
+3. **Rate Limiting**
+   - The API implements rate limiting to prevent abuse
+   - Monitor your API usage to stay within limits
 
 ## Troubleshooting
 
-### Common Issues
-
 1. **Connection Issues**
-   - Verify IBKR credentials
-   - Check network connectivity
-   - Ensure OAuth files are properly placed
+   - Verify your network connection
+   - Check IBKR API status
+   - Ensure credentials are correct
 
-2. **Order Placement Failures**
-   - Validate order parameters
-   - Check account permissions
+2. **Authentication Errors**
+   - Verify OAuth credentials
+   - Check key file permissions
+   - Ensure correct environment is selected
+
+3. **Order Issues**
    - Verify market hours
-
-3. **Rate Limiting**
-   - Monitor request frequency
-   - Implement exponential backoff
-   - Contact support if limits are too restrictive
-
-### Logging
-
-Logs are available in the following locations:
-- Docker: `docker-compose logs -f`
-- Local: Check the console output or log files
+   - Check order parameters
+   - Review error messages
 
 ## Production Deployment
 
-### Recommended Setup
-
-1. **Reverse Proxy**
-   ```nginx
-   server {
-       listen 443 ssl;
-       server_name api.yourdomain.com;
-
-       ssl_certificate /path/to/cert.pem;
-       ssl_certificate_key /path/to/key.pem;
-
-       location / {
-           proxy_pass http://localhost:5001;
-           proxy_set_header Host $host;
-           proxy_set_header X-Real-IP $remote_addr;
-           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-           proxy_set_header X-Forwarded-Proto $scheme;
-       }
-   }
+1. **Docker Deployment**
+   ```bash
+   docker compose up -d
    ```
 
-2. **Monitoring**
-   - Set up health checks
-   - Monitor API usage
-   - Track error rates
+2. **Environment Setup**
+   - Set appropriate environment variables
+   - Configure logging
+   - Set up monitoring
 
-3. **Backup**
-   - Regular configuration backups
-   - Secure credential storage
-   - Disaster recovery plan
+3. **Security Considerations**
+   - Use HTTPS
+   - Implement proper authentication
+   - Regular security updates
 
 ## Contributing
 
@@ -254,7 +213,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Support
 
-For issues and support:
-1. Check the troubleshooting guide
+For support, please:
+1. Check the documentation
 2. Review existing issues
-3. Create a new issue with detailed information
+3. Create a new issue if needed

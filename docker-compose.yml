@@ -5,9 +5,8 @@ services:
     ports:
       - "5001:5001"
     volumes:
-      # Mount the configuration directories to allow for easy updates
-      - ./paper_trading.json:/app/paper_trading.json:ro
-      - ./live_trading.json:/app/live_trading.json:ro
+      # Mount the configuration file and OAuth directories
+      - ./config.json:/app/config.json:ro
       - ./paper_trading_oauth_files:/app/paper_trading_oauth_files:ro
       - ./live_trading_oauth_files:/app/live_trading_oauth_files:ro
     environment:

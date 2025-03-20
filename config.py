@@ -18,13 +18,8 @@ class Config:
             environment (str): Either "paper_trading" or "live_trading"
         """
         self.environment = environment
-        self.config_path = self._get_config_path()
+        self.config_path = Path(__file__).resolve().parent / "config.json"
         self.config = self._load_config()
-
-    def _get_config_path(self):
-        """Get the path to the configuration file based on the environment."""
-        base_dir = Path(__file__).resolve().parent
-        return base_dir / f"{self.environment}.json"
 
     def _load_config(self):
         """Load the configuration from the JSON file."""
@@ -33,7 +28,7 @@ class Config:
 
     def get_oauth_config(self):
         """Get OAuth configuration with absolute file paths."""
-        oauth_config = self.config.get("oauth", {})
+        oauth_config = self.config[self.environment]["oauth"]
         base_dir = Path(__file__).resolve().parent
 
         # Convert relative paths to absolute paths
@@ -45,7 +40,7 @@ class Config:
 
     def get_api_config(self):
         """Get API configuration."""
-        return self.config.get("api", {})
+        return self.config[self.environment]["api"]
 
     def get_application_config(self):
         """Get application configuration."""

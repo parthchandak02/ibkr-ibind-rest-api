@@ -14,7 +14,7 @@ from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from ibind import QuestionType
-from ibind.client.ibkr_utils import OrderRequest
+from ibind.client.ibkr_utils import OrderRequest, parse_order_request
 
 from utils import get_ibkr_client
 
