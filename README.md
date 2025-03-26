@@ -325,27 +325,40 @@ curl -X POST http://localhost:5001/order \
 
 ### 5. Percentage-Based Orders
 
-**Buy 0.5% below market:**
+**Buy below market price:**
 ```bash
 curl -X POST http://localhost:5001/percentage-limit-order/AAPL \
   -H "Content-Type: application/json" \
   -d '{
     "side": "BUY",
-    "quantity": 1,
-    "percentage": 0.5
+    "percentage_below_market": 0.5,
+    "dollar_amount": 1000
   }'
 ```
 
-**Sell 0.5% above market:**
+**Sell above market price:**
 ```bash
 curl -X POST http://localhost:5001/percentage-limit-order/AAPL \
   -H "Content-Type: application/json" \
   -d '{
     "side": "SELL",
-    "quantity": 1,
-    "percentage": -0.5  # Negative means above market
+    "percentage_above_market": 0.5,
+    "percentage_of_position": 50,
+    "time_in_force": "GTC"
   }'
 ```
+
+The percentage-based orders have different parameters based on the order side:
+
+For BUY orders:
+- `percentage_below_market`: Percentage below current market price to set the limit price
+- `dollar_amount`: Amount in USD to buy (quantity will be calculated based on limit price)
+- `time_in_force`: Optional, defaults to "GTC"
+
+For SELL orders:
+- `percentage_above_market`: Percentage above current market price to set the limit price
+- `percentage_of_position`: Percentage of your current position to sell
+- `time_in_force`: Optional, defaults to "GTC"
 
 ### 6. Cancel Orders
 
