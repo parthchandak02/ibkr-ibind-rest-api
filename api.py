@@ -9,7 +9,10 @@ This API provides endpoints for:
 import os
 import datetime
 import logging
-from flask import Flask, request, jsonify
+import time
+import csv
+import io
+from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -47,8 +50,18 @@ def health_check():
     try:
         client = get_ibkr_client(TRADING_ENV)
         health = client.check_health()
+
+        # Get position count and pagination info
+        positions = client.positions(pageSize=1000).data
+        position_info = {
+            'count': len(positions),
+            'first_position': positions[0] if positions else None,
+            'last_position': positions[-1] if positions else None
+        }
+
         return jsonify({
             "status": "ok",
+            "position_info": position_info,
             "environment": TRADING_ENV,
             "ibkr_status": health
         })
@@ -108,9 +121,56 @@ def get_account():
         ledger = client.get_ledger().data
         account_data["ledger"] = ledger
 
-        # Get positions
-        positions = client.positions().data
-        account_data["positions"] = positions
+        # Fetch all positions using pagination
+        all_positions = []
+        page = 0  # Pages start at 0
+
+        print(f"DEBUG: Starting position pagination at page {page}")
+
+        while True:
+            try:
+                # Call positions method with proper page parameter - an integer
+                print(f"DEBUG: Attempting to fetch positions page: {page}")
+                logger.info(f"PAGINATION: Attempting to fetch positions page: {page}")
+                response = client.positions(page=page)
+
+                # Check if data exists and is a list
+                current_page_positions = response.data
+
+                # Log details about the response
+                print(f"DEBUG: Response type: {type(response.data)}, {len(current_page_positions) if isinstance(current_page_positions, list) else 'not a list'}")
+
+                if isinstance(current_page_positions, list) and current_page_positions:
+                    print(f"DEBUG: Page {page} has {len(current_page_positions)} positions")
+                    # Add all positions from this page
+                    all_positions.extend(current_page_positions)
+
+                    print(f"DEBUG: Total positions so far: {len(all_positions)}")
+
+                    # The API returns up to 100 items per page
+                    # If fewer items returned, we've reached the last page
+                    if len(current_page_positions) < 100:
+                        print(f"DEBUG: Last page detected - fewer than 100 positions on page {page}")
+                        break
+
+                    # If we got exactly 100 positions, try the next page
+                    print(f"DEBUG: Got exactly 100 positions on page {page}, checking next page")
+                    page += 1
+                    time.sleep(0.5)  # Increased delay between requests
+                else:
+                    # No more data or unexpected format
+                    print(f"DEBUG: No positions found on page {page} or unexpected data format")
+                    break
+            except Exception as page_error:
+                print(f"DEBUG ERROR on page {page}: {page_error}")
+                break
+
+        print(f"DEBUG SUMMARY: Retrieved total of {len(all_positions)} positions across {page+1} pages")
+        account_data["positions"] = all_positions
+        account_data["portfolio_summary"] = {
+            'total_positions': len(all_positions),
+            'timestamp': datetime.datetime.now().isoformat()
+        }
 
         return jsonify({
             "status": "ok",
@@ -582,6 +642,177 @@ def percentage_limit_order(symbol):
                 logger.info("Successfully logged out IBKR client")
             except Exception as e:
                 logger.error(f"Error logging out IBKR client: {e}")
+
+
+@app.route('/positions/csv', methods=['GET'])
+@limiter.limit("10 per minute")
+def get_positions_csv():
+    """Export all positions to a CSV file."""
+    try:
+        client = get_ibkr_client(TRADING_ENV)
+
+        # Fetch all positions using pagination (same logic as in get_account)
+        all_positions = []
+        page = 0
+
+        print(f"DEBUG: Starting position pagination for CSV export at page {page}")
+
+        while True:
+            try:
+                response = client.positions(page=page)
+                current_page_positions = response.data
+
+                if isinstance(current_page_positions, list) and current_page_positions:
+                    print(f"DEBUG: CSV export - Page {page} has {len(current_page_positions)} positions")
+                    all_positions.extend(current_page_positions)
+
+                    if len(current_page_positions) < 100:
+                        break
+
+                    page += 1
+                    time.sleep(0.5)
+                else:
+                    break
+            except Exception as page_error:
+                print(f"DEBUG ERROR on CSV export page {page}: {page_error}")
+                break
+
+        print(f"DEBUG: CSV export retrieved {len(all_positions)} positions")
+
+        # Sample first position for debugging
+        if all_positions:
+            first_pos = all_positions[0]
+            print(f"DEBUG: First position sample data:")
+            for key in first_pos.keys():
+                print(f"  {key}: {first_pos.get(key)}")
+
+        # Create CSV data
+        output = io.StringIO()
+        fieldnames = [
+            'Symbol', 'Name', 'Position', 'Avg Cost', 'Market Price',
+            'Market Value', 'Cost Basis', 'Unrealized P&L', 'P&L %',
+            'Currency', 'Sector', 'Type', 'Country', 'Exchange'
+        ]
+
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+
+        # Write positions to CSV with enhanced formatting
+        for position in all_positions:
+            # Extract numerical values safely
+            position_qty = float(position.get('position', 0) or 0)
+            avg_cost = float(position.get('avgPrice', 0) or 0)
+            market_price = float(position.get('mktPrice', 0) or 0)
+            market_value = float(position.get('mktValue', 0) or 0)
+            unrealized_pnl = float(position.get('unrealizedPnl', 0) or 0)
+
+            # Calculate P&L percentage if we have valid prices
+            if avg_cost > 0 and market_price > 0:
+                pnl_percent = ((market_price - avg_cost) / avg_cost) * 100
+            else:
+                pnl_percent = 0
+
+            # Calculate cost basis
+            cost_basis = position_qty * avg_cost
+
+            # Get symbol - try different fields that might contain it
+            symbol = position.get('ticker', '') or position.get('contractDesc', '') or position.get('symbol', '')
+
+            # Format row with readable column names
+            row = {
+                'Symbol': symbol,
+                'Name': position.get('name', ''),
+                'Position': f"{position_qty:,.2f}",
+                'Avg Cost': f"${avg_cost:,.2f}",
+                'Market Price': f"${market_price:,.2f}",
+                'Market Value': f"${market_value:,.2f}",
+                'Cost Basis': f"${cost_basis:,.2f}",
+                'Unrealized P&L': f"${unrealized_pnl:,.2f}",
+                'P&L %': f"{pnl_percent:.2f}%",
+                'Currency': position.get('currency', ''),
+                'Sector': position.get('sector', ''),
+                'Type': position.get('type', ''),
+                'Country': position.get('countryCode', ''),
+                'Exchange': position.get('listingExchange', '')
+            }
+            writer.writerow(row)
+
+        # Prepare the response
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        response = Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': f'attachment; filename=positions_{timestamp}.csv',
+                'Content-Type': 'text/csv'
+            }
+        )
+        return response
+
+    except Exception as e:
+        logger.error("Failed to generate positions CSV: %s", str(e))
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+
+@app.route('/positions', methods=['GET'])
+@limiter.limit("20 per minute")
+def get_positions():
+    """Get detailed position information."""
+    try:
+        client = get_ibkr_client(TRADING_ENV)
+
+        # Get limit parameter (default to 10)
+        limit = request.args.get('limit', 10, type=int)
+
+        # Fetch positions with pagination
+        all_positions = []
+        page = 0
+
+        while True:
+            try:
+                response = client.positions(page=page)
+                current_page_positions = response.data
+
+                if isinstance(current_page_positions, list) and current_page_positions:
+                    all_positions.extend(current_page_positions)
+
+                    # Break if we have enough positions or reached the last page
+                    if len(all_positions) >= limit or len(current_page_positions) < 100:
+                        break
+
+                    page += 1
+                    time.sleep(0.5)
+                else:
+                    break
+            except Exception as page_error:
+                print(f"Error on page {page}: {page_error}")
+                break
+
+        # Return only the requested number of positions
+        positions_to_return = all_positions[:limit]
+
+        # Add summary information
+        position_summary = {
+            'total_available': len(all_positions),
+            'displayed': len(positions_to_return),
+            'timestamp': datetime.datetime.now().isoformat()
+        }
+
+        return jsonify({
+            "status": "ok",
+            "environment": TRADING_ENV,
+            "summary": position_summary,
+            "positions": positions_to_return
+        })
+    except Exception as e:
+        logger.error("Failed to get positions: %s", str(e))
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 
 if __name__ == '__main__':

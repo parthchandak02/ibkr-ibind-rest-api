@@ -1,19 +1,27 @@
 # IBKR REST API
 
-A RESTful API wrapper for Interactive Brokers (IBKR) using the IBIND library.
+A RESTful API wrapper for Interactive Brokers (IBKR) using the IBIND library, with proper pagination support for large portfolios.
+
+![Python](https://img.shields.io/badge/python-3.8%2B-blue)
+![Flask](https://img.shields.io/badge/flask-3.0.2-green)
+![IBIND](https://img.shields.io/badge/ibind-0.1.13-orange)
+![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 ## What is this?
 
-This is a simple REST API that lets you:
+This is a robust REST API that lets you:
 - Trade stocks and ETFs through Interactive Brokers
 - Switch between paper trading (practice) and live trading
 - Place different types of orders (market, limit, etc.)
 - Check your account information and orders
+- **Retrieve all positions with proper pagination** (supports 100+ positions)
+- **Export positions to CSV** for easy analysis
 
 Perfect for:
 - Building trading applications
 - Automating your trading strategies
 - Learning to trade with paper money before going live
+- Managing large portfolios with many positions
 
 ## Features
 
@@ -21,7 +29,8 @@ Perfect for:
 - 📊 Support for both paper and live trading environments
 - 🔄 Real-time market data and order management
 - 📈 Support for various order types (market, limit, percentage-based)
-- 🎯 Position and portfolio management
+- 🎯 Position and portfolio management with **full pagination support**
+- 📄 **Export positions to CSV** with comprehensive details
 - 🔍 Advanced market data queries
 - 🛡️ Rate limiting and error handling
 - 📝 Comprehensive logging
@@ -53,12 +62,15 @@ Before you start, make sure you have:
    Create a `config.json` file with your IBKR credentials (see example below)
 
 4. **Start the server:**
-   ```bash
-   python api.py
-   ```
-   Or with Docker:
+
+   ### Production Mode (Docker):
    ```bash
    docker compose up -d
+   ```
+
+   ### Development Mode:
+   ```bash
+   python dev.py
    ```
 
 5. **Test it works:**
@@ -66,6 +78,158 @@ Before you start, make sure you have:
    curl http://localhost:5001/health
    ```
    You should see: `{"status": "ok", ...}`
+
+## Development Workflow
+
+This project supports two development workflows:
+
+### 1. Direct Flask Development (Fastest)
+
+For rapid development iterations:
+
+```bash
+# Activate virtual environment
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run development server (with auto-reload)
+python dev.py
+```
+
+Changes to your code will be applied automatically without restarting the server.
+
+### 2. Docker with Code Mounting
+
+For development in a containerized environment:
+
+```bash
+# Start container with volume mounts
+docker compose up -d
+
+# Make changes to your local files
+# Restart container to apply changes
+docker compose restart ibkr-api
+```
+
+## API Endpoints
+
+### Account Management
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Check API health and connection status |
+| `/account` | GET | Get account information, positions, and ledger |
+| `/positions` | GET | Get detailed position information (paginated) |
+| `/positions/csv` | GET | Export all positions to CSV file |
+| `/switch-environment` | POST | Switch between paper and live trading |
+
+### Order Management
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/orders` | GET | Get all orders for the account |
+| `/order/<order_id>` | GET | Get details for a specific order |
+| `/order` | POST | Place a new order |
+| `/order/<order_id>` | DELETE | Cancel an existing order |
+| `/percentage-limit-order/<symbol>` | POST | Place a percentage-based limit order |
+
+## Position Pagination and CSV Export
+
+This API properly handles large portfolios with over 100 positions by implementing pagination:
+
+```bash
+# Get the first 10 positions (default)
+curl http://localhost:5001/positions
+
+# Get more positions
+curl http://localhost:5001/positions?limit=50
+
+# Export all positions to CSV
+curl -o positions.csv http://localhost:5001/positions/csv
+```
+
+The CSV export includes:
+- Symbol and full name
+- Position size and cost basis
+- Current market price and value
+- Unrealized P&L (both $ and %)
+- Sector, asset type and exchange information
+
+## Cloud Deployment
+
+### Option 1: Digital Ocean (Recommended)
+
+1. Create a Digital Ocean Droplet with Docker pre-installed
+2. Set up a firewall in Digital Ocean:
+   ```bash
+   # Only allow specific IPs to access your API
+   ufw allow from your_ip_address to any port 5001
+   ufw enable
+   ```
+3. Deploy using Docker:
+   ```bash
+   git clone https://github.com/yourusername/ibkr-ibind-rest-api.git
+   cd ibkr-ibind-rest-api
+   docker compose up -d
+   ```
+
+### Option 2: Heroku
+
+1. Install Heroku CLI
+2. Add Heroku-specific files:
+   ```bash
+   # Create Procfile
+   echo "web: docker compose up" > Procfile
+   ```
+3. Deploy:
+   ```bash
+   heroku create your-app-name
+   heroku container:push web
+   heroku container:release web
+   ```
+
+### Security Considerations for Public Deployment ⚠️
+
+1. **DO NOT** expose the API publicly without authentication:
+   - Set up a reverse proxy (like Nginx) with SSL/TLS
+   - Implement API key authentication
+   - Use IP whitelisting to restrict access
+
+2. **Required Security Measures:**
+   ```nginx
+   # Example Nginx configuration
+   server {
+       listen 443 ssl;
+       server_name your.domain.com;
+
+       ssl_certificate /path/to/cert.pem;
+       ssl_certificate_key /path/to/key.pem;
+
+       location / {
+           # Only allow specific IPs
+           allow your_ip_address;
+           deny all;
+
+           # API key check
+           if ($http_x_api_key != "your_secret_key") {
+               return 403;
+           }
+
+           proxy_pass http://localhost:5001;
+       }
+   }
+   ```
+
+3. **Environment Variables:**
+   - Store all sensitive data in environment variables
+   - Use secrets management service if available
+   ```bash
+   # Example .env file (DO NOT commit this)
+   IBIND_API_KEY=your_secret_key
+   IBIND_ALLOWED_IPS=1.2.3.4,5.6.7.8
+   ```
 
 ## Basic Usage Examples
 
@@ -79,7 +243,7 @@ Before you start, make sure you have:
    curl -X POST http://localhost:5001/order \
      -H "Content-Type: application/json" \
      -d '{
-       "symbol": "AAPL",
+       "conid": "265598",  # AAPL's contract ID
        "side": "BUY",
        "quantity": 1,
        "order_type": "MKT"
@@ -89,6 +253,11 @@ Before you start, make sure you have:
 3. **View your orders:**
    ```bash
    curl http://localhost:5001/orders
+   ```
+
+4. **Export positions to CSV:**
+   ```bash
+   curl -o positions.csv http://localhost:5001/positions/csv
    ```
 
 ## Configuration
@@ -107,31 +276,6 @@ Create a `config.json` file in your project root with just the essential setting
       "encryption_key_path": "paper_trading_oauth_files/private_encryption.pem",
       "signature_key_path": "paper_trading_oauth_files/private_signature.pem"
     }
-  }
-}
-```
-
-### Full Configuration Options
-
-For more control, you can use all available settings:
-
-```json
-{
-  "name": "IBKR Configuration",
-  "description": "Combined configuration for paper and live trading",
-  "paper_trading": {
-    "oauth": {
-      "consumer_key": "your_paper_key",
-      "access_token": "your_paper_token",
-      "access_token_secret": "your_paper_secret",
-      "encryption_key_path": "paper_trading_oauth_files/private_encryption.pem",
-      "signature_key_path": "paper_trading_oauth_files/private_signature.pem"
-    },
-    "api": {
-      "use_paper_trading": true,
-      "paper_trading_host": "https://www.ibkrstaging.com/",
-      "paper_trading_api_base": "https://www.ibkrstaging.com/v1/api"
-    }
   },
   "live_trading": {
     "oauth": {
@@ -140,322 +284,20 @@ For more control, you can use all available settings:
       "access_token_secret": "your_live_secret",
       "encryption_key_path": "live_trading_oauth_files/private_encryption.pem",
       "signature_key_path": "live_trading_oauth_files/private_signature.pem"
-    },
-    "api": {
-      "use_paper_trading": false,
-      "live_trading_host": "https://api.ibkr.com/",
-      "live_trading_api_base": "https://api.ibkr.com/v1/api"
     }
-  },
-  "application": {
-    "log_level": "INFO",
-    "cache_timeout": 300,
-    "auto_refresh": true
   }
 }
 ```
-
-### Environment Variables
-
-You can override some settings using environment variables:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `IBIND_TRADING_ENV` | Which mode to use (`paper_trading` or `live_trading`) | paper_trading |
-| `IBIND_USE_OAUTH` | Enable OAuth authentication | true |
-| `IBIND_ACCOUNT_ID` | Your IBKR account ID (optional) | None |
-
-## API Reference
-
-### Health Check
-Check if the API is running:
-```http
-GET /health
-Response: {"status": "ok", "environment": "paper_trading"}
-```
-
-### Switch Environment
-Switch between paper and live trading:
-```http
-POST /switch-environment
-Body: {"environment": "paper_trading"}  # or "live_trading"
-```
-
-### Account Information
-Get your account details:
-```http
-GET /account
-Response: {
-  "status": "ok",
-  "data": {
-    "accounts": [...],
-    "positions": [...],
-    "ledger": [...]
-  }
-}
-```
-
-### Orders
-```http
-# List all orders
-GET /orders
-
-# Get a specific order
-GET /order/{order_id}
-
-# Place a new order
-POST /order
-Body: {
-  "symbol": "AAPL",
-  "side": "BUY",
-  "quantity": 1,
-  "order_type": "MKT"  # MKT, LMT, STP, STP_LMT
-}
-
-# Place a percentage-based limit order
-POST /percentage-limit-order/{symbol}
-Body: {
-  "side": "BUY",
-  "quantity": 1,
-  "percentage": 0.5  # 0.5% below market price
-}
-
-# Cancel an order
-DELETE /order/{order_id}
-```
-
-## Order Examples
-
-### 1. View Orders
-
-**List all orders:**
-```bash
-curl http://localhost:5001/orders
-```
-
-**Get a specific order:**
-```bash
-curl http://localhost:5001/order/1234567890
-```
-
-### 2. Market Orders
-
-**Buy market order:**
-```bash
-curl -X POST http://localhost:5001/order \
-  -H "Content-Type: application/json" \
-  -d '{
-    "symbol": "AAPL",
-    "side": "BUY",
-    "quantity": 1,
-    "order_type": "MKT"
-  }'
-```
-
-**Sell market order:**
-```bash
-curl -X POST http://localhost:5001/order \
-  -H "Content-Type: application/json" \
-  -d '{
-    "symbol": "AAPL",
-    "side": "SELL",
-    "quantity": 1,
-    "order_type": "MKT"
-  }'
-```
-
-### 3. Limit Orders
-
-**Buy limit order:**
-```bash
-curl -X POST http://localhost:5001/order \
-  -H "Content-Type: application/json" \
-  -d '{
-    "symbol": "AAPL",
-    "side": "BUY",
-    "quantity": 1,
-    "order_type": "LMT",
-    "price": 150.00,
-    "tif": "GTC"  # Good Till Cancel
-  }'
-```
-
-**Sell limit order:**
-```bash
-curl -X POST http://localhost:5001/order \
-  -H "Content-Type: application/json" \
-  -d '{
-    "symbol": "AAPL",
-    "side": "SELL",
-    "quantity": 1,
-    "order_type": "LMT",
-    "price": 170.00,
-    "tif": "DAY"  # Day order
-  }'
-```
-
-### 4. Stop Orders
-
-**Stop loss order:**
-```bash
-curl -X POST http://localhost:5001/order \
-  -H "Content-Type: application/json" \
-  -d '{
-    "symbol": "AAPL",
-    "side": "SELL",
-    "quantity": 1,
-    "order_type": "STP",
-    "aux_price": 145.00  # Stop trigger price
-  }'
-```
-
-**Stop limit order:**
-```bash
-curl -X POST http://localhost:5001/order \
-  -H "Content-Type: application/json" \
-  -d '{
-    "symbol": "AAPL",
-    "side": "SELL",
-    "quantity": 1,
-    "order_type": "STP_LMT",
-    "price": 144.00,     # Limit price
-    "aux_price": 145.00  # Stop trigger price
-  }'
-```
-
-### 5. Percentage-Based Orders
-
-**Buy below market price:**
-```bash
-curl -X POST http://localhost:5001/percentage-limit-order/AAPL \
-  -H "Content-Type: application/json" \
-  -d '{
-    "side": "BUY",
-    "percentage_below_market": 0.5,
-    "dollar_amount": 1000
-  }'
-```
-
-**Sell above market price:**
-```bash
-curl -X POST http://localhost:5001/percentage-limit-order/AAPL \
-  -H "Content-Type: application/json" \
-  -d '{
-    "side": "SELL",
-    "percentage_above_market": 0.5,
-    "percentage_of_position": 50,
-    "time_in_force": "GTC"
-  }'
-```
-
-The percentage-based orders have different parameters based on the order side:
-
-For BUY orders:
-- `percentage_below_market`: Percentage below current market price to set the limit price
-- `dollar_amount`: Amount in USD to buy (quantity will be calculated based on limit price)
-- `time_in_force`: Optional, defaults to "GTC"
-
-For SELL orders:
-- `percentage_above_market`: Percentage above current market price to set the limit price
-- `percentage_of_position`: Percentage of your current position to sell
-- `time_in_force`: Optional, defaults to "GTC"
-
-### 6. Cancel Orders
-
-**Cancel a specific order:**
-```bash
-curl -X DELETE http://localhost:5001/order/1234567890
-```
-
-### Order Parameters
-
-| Parameter | Description | Required | Values |
-|-----------|-------------|----------|---------|
-| `symbol` | Stock/ETF symbol | Yes | e.g., "AAPL", "SPY" |
-| `side` | Buy or sell | Yes | "BUY", "SELL" |
-| `quantity` | Number of shares | Yes | Any positive number |
-| `order_type` | Type of order | Yes | "MKT", "LMT", "STP", "STP_LMT" |
-| `price` | Limit price | For LMT orders | Any positive number |
-| `aux_price` | Stop price | For STP orders | Any positive number |
-| `tif` | Time in force | No | "DAY", "GTC", "IOC", "FOK" |
-| `outside_rth` | Trade outside regular hours | No | true/false |
-
-### Time in Force Options
-
-| Value | Description |
-|-------|-------------|
-| `DAY` | Valid for the current trading day |
-| `GTC` | Good Till Canceled |
-| `IOC` | Immediate or Cancel |
-| `FOK` | Fill or Kill |
-
-## Common Issues & Solutions
-
-### "Cannot connect to server"
-1. Check if the server is running: `curl http://localhost:5001/health`
-2. Make sure you're using the right port (5001)
-3. If using Docker, check container status: `docker compose ps`
-
-### "Authentication failed"
-1. Verify your OAuth credentials in `config.json`
-2. Check that your OAuth key files exist and are readable
-3. Make sure you're in the right environment (paper/live)
-
-### "Order rejected"
-1. Check your account has enough funds
-2. Verify market hours (most US stocks trade 9:30 AM - 4:00 PM ET)
-3. For limit orders, check if your price is reasonable
-
-## Security Checklist
-
-✅ **Before going live:**
-1. Test thoroughly in paper trading mode first
-2. Keep your OAuth credentials secure
-3. Use environment variables for sensitive data
-4. Never commit credentials to git
-5. Set up proper monitoring and alerts
-
-## Getting Help
-
-Need help? Here's what to do:
-
-1. **Check the docs:**
-   - Read this README thoroughly
-   - Look for similar issues in our issue tracker
-   - Check IBKR's [official documentation](https://www.interactivebrokers.com/api/doc.html)
-
-2. **Debug your issue:**
-   - Check the API logs (default location: `./logs/api.log`)
-   - Try the request in paper trading mode first
-   - Use `curl` to test endpoints directly
-
-3. **Get support:**
-   - [Open an issue](https://github.com/yourusername/ibkr-ibind-rest-api/issues/new)
-   - Include:
-     - What you're trying to do
-     - What you've tried
-     - Any error messages
-     - Relevant log snippets
-
-## Contributing
-
-Want to help improve this API? Great! Here's how:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Run the tests (`python -m pytest`)
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to your branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT
 
-## Support
+## Contributing
 
-For support, please:
-1. Check the documentation
-2. Review existing issues
-3. Create a new issue if needed
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+
+## Acknowledgements
+
+- Built with [IBIND](https://github.com/Voyz/ibind) library
+- Uses Flask for the REST API framework

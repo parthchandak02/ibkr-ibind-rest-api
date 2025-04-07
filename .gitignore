@@ -66,6 +66,7 @@ Thumbs.db
 *.json
 !live_trading.example.json
 !paper_trading.example.json
+!config.json
 
 # Generated files
 *.csv
@@ -75,3 +76,10 @@ orders_*.csv
 # macOS
 .AppleDouble
 .LSOverride
+
+# Development files
+dev.py
+ibind_positions_test.py
+sample.txt
+positions.csv
+.history/

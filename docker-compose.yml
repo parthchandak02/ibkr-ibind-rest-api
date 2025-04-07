@@ -9,6 +9,9 @@ services:
       - ./config.json:/app/config.json:ro
       - ./paper_trading_oauth_files:/app/paper_trading_oauth_files:ro
       - ./live_trading_oauth_files:/app/live_trading_oauth_files:ro
+      # Mount the application code for development
+      - ./api.py:/app/api.py
+      - ./utils.py:/app/utils.py
     environment:
       # Example environment variables, can be modified as needed
       - IBIND_TRADING_ENV=live_trading
