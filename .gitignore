@@ -63,10 +63,13 @@ live_trading_oauth_files/
 Thumbs.db
 
 # Local development
+# Protect sensitive configuration files but allow position data
 *.json
+# Allow example configuration files
 !live_trading.example.json
 !paper_trading.example.json
 !config.example.json
+!positions_data.json
 
 # Generated files
 *.csv

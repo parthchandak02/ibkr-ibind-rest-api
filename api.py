@@ -51,13 +51,39 @@ def health_check():
         client = get_ibkr_client(TRADING_ENV)
         health = client.check_health()
 
-        # Get position count and pagination info
+        # Get position count with proper pagination handling
         # The IBKR API returns up to 100 positions per page
-        positions = client.positions().data
+        all_positions = []
+        page = 0
+        
+        while True:
+            try:
+                # Fetch positions page by page
+                response = client.positions(page=page)
+                current_page_positions = response.data
+                
+                if isinstance(current_page_positions, list) and current_page_positions:
+                    all_positions.extend(current_page_positions)
+                    
+                    # If fewer than 100 positions returned, we've reached the last page
+                    if len(current_page_positions) < 100:
+                        break
+                        
+                    # Try the next page
+                    page += 1
+                    time.sleep(0.5)  # Small delay between requests
+                else:
+                    # No more data or unexpected format
+                    break
+            except Exception as page_error:
+                logger.error(f"Error fetching positions page {page}: {page_error}")
+                break
+        
         position_info = {
-            'count': len(positions),
-            'first_position': positions[0] if positions else None,
-            'last_position': positions[-1] if positions else None
+            'total_count': len(all_positions),
+            'pages_fetched': page + 1,
+            'first_position': all_positions[0] if all_positions else None,
+            'last_position': all_positions[-1] if all_positions else None
         }
 
         return jsonify({
@@ -452,17 +478,43 @@ def percentage_limit_order(symbol):
                     conid = str(symbol_info['conid'])
                     logger.info(f"Found conid {conid} for {symbol} using default filtering")
                 else:
-                    # Default filtering didn't work, try to find a US stock on ARCA exchange
-                    for stock_symbol, stock_list in stocks_data.items():
-                        for stock in stock_list:
-                            if 'contracts' in stock:
-                                for contract in stock['contracts']:
-                                    if contract.get('isUS') and contract.get('exchange') == 'ARCA':
-                                        conid = str(contract['conid'])
-                                        logger.info(f"Selected US ARCA conid {conid} for {symbol}")
+                    # Default filtering didn't work, try to find a US stock on any major exchange
+                    # Define priority order of exchanges to try
+                    preferred_exchanges = ['ARCA', 'NYSE', 'NASDAQ', 'BATS', 'ISLAND', 'AMEX']
+                    
+                    # First try preferred exchanges in order
+                    for exchange in preferred_exchanges:
+                        if conid:  # If we already found a match, break
+                            break
+                            
+                        for stock_symbol, stock_list in stocks_data.items():
+                            for stock in stock_list:
+                                if 'contracts' in stock:
+                                    for contract in stock['contracts']:
+                                        if contract.get('isUS') and contract.get('exchange') == exchange:
+                                            conid = str(contract['conid'])
+                                            logger.info(f"Selected US {exchange} conid {conid} for {symbol}")
+                                            break
+                                    if conid:
                                         break
-                                if conid:
-                                    break
+                            if conid:
+                                break
+                    
+                    # If still no match, try any US exchange
+                    if not conid:
+                        logger.info(f"No match on preferred exchanges, trying any US exchange for {symbol}")
+                        for stock_symbol, stock_list in stocks_data.items():
+                            for stock in stock_list:
+                                if 'contracts' in stock:
+                                    for contract in stock['contracts']:
+                                        if contract.get('isUS'):
+                                            conid = str(contract['conid'])
+                                            logger.info(f"Selected US {contract.get('exchange')} conid {conid} for {symbol}")
+                                            break
+                                    if conid:
+                                        break
+                            if conid:
+                                break
 
                 if not conid:
                     return jsonify({
@@ -525,16 +577,60 @@ def percentage_limit_order(symbol):
         # Step 3: Calculate quantity based on side
         try:
             if side == 'SELL':
-                # Get current position information
-                position_data = client.positions().data
+                # Get all positions with proper pagination handling
+                all_positions = []
+                page = 0
+                
+                logger.info(f"Fetching positions with pagination starting at page {page}")
+                
+                while True:
+                    try:
+                        # Fetch positions page by page
+                        response = client.positions(page=page)
+                        current_page_positions = response.data
+                        
+                        if isinstance(current_page_positions, list) and current_page_positions:
+                            logger.info(f"Retrieved {len(current_page_positions)} positions from page {page}")
+                            all_positions.extend(current_page_positions)
+                            
+                            # If fewer than 100 positions returned, we've reached the last page
+                            if len(current_page_positions) < 100:
+                                break
+                                
+                            # Try the next page
+                            page += 1
+                            time.sleep(0.5)  # Small delay between requests
+                        else:
+                            # No more data or unexpected format
+                            break
+                    except Exception as page_error:
+                        logger.error(f"Error fetching positions page {page}: {page_error}")
+                        break
+                
+                position_data = all_positions
                 matching_position = None
+                
+                # Log the total number of positions found
+                logger.info(f"Retrieved a total of {len(position_data)} positions across {page+1} pages")
 
-                # Find the matching position for our conid
+                # Find the matching position for our conid or ticker
                 if position_data:
+                    # First try to match by conid
                     for position in position_data:
                         if str(position.get('conid')) == conid:
                             matching_position = position
+                            logger.info(f"Found position match by conid: {conid}")
                             break
+                    
+                    # If no match by conid, try to match by ticker (case insensitive)
+                    if not matching_position:
+                        logger.info(f"No match by conid, trying to match by ticker: {symbol}")
+                        for position in position_data:
+                            position_ticker = position.get('ticker', '')
+                            if position_ticker and position_ticker.upper() == symbol.upper():
+                                matching_position = position
+                                logger.info(f"Found position match by ticker: {position_ticker}")
+                                break
 
                 if not matching_position:
                     return jsonify({
