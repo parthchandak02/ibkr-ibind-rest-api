@@ -52,7 +52,8 @@ def health_check():
         health = client.check_health()
 
         # Get position count and pagination info
-        positions = client.positions(pageSize=1000).data
+        # The IBKR API returns up to 100 positions per page
+        positions = client.positions().data
         position_info = {
             'count': len(positions),
             'first_position': positions[0] if positions else None,

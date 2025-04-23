@@ -1,0 +1,46 @@
+{
+  "name": "IBKR Configuration",
+  "description": "Combined configuration for paper and live trading",
+  "paper_trading": {
+    "oauth": {
+      "consumer_key": "YOUR_PAPER_CONSUMER_KEY",
+      "access_token": "YOUR_PAPER_ACCESS_TOKEN",
+      "access_token_secret": "YOUR_PAPER_ACCESS_TOKEN_SECRET",
+      "dh_prime": "YOUR_PAPER_DH_PRIME",
+      "encryption_key_path": "paper_trading_oauth_files/private_encryption.pem",
+      "signature_key_path": "paper_trading_oauth_files/private_signature.pem",
+      "realm": "limited_poa"
+    },
+    "api": {
+      "use_paper_trading": true,
+      "paper_trading_host": "https://www.ibkrstaging.com/",
+      "paper_trading_api_base": "https://www.ibkrstaging.com/v1/api",
+      "live_trading_host": "https://api.ibkr.com/",
+      "live_trading_api_base": "https://api.ibkr.com/v1/api"
+    }
+  },
+  "live_trading": {
+    "oauth": {
+      "consumer_key": "YOUR_LIVE_CONSUMER_KEY",
+      "access_token": "YOUR_LIVE_ACCESS_TOKEN",
+      "access_token_secret": "YOUR_LIVE_ACCESS_TOKEN_SECRET",
+      "dh_prime": "YOUR_LIVE_DH_PRIME",
+      "encryption_key_path": "live_trading_oauth_files/private_encryption.pem",
+      "signature_key_path": "live_trading_oauth_files/private_signature.pem",
+      "realm": "limited_poa"
+    },
+    "api": {
+      "use_paper_trading": false,
+      "paper_trading_host": "https://www.ibkrstaging.com/",
+      "paper_trading_api_base": "https://www.ibkrstaging.com/v1/api",
+      "live_trading_host": "https://api.ibkr.com/",
+      "live_trading_api_base": "https://api.ibkr.com/v1/api"
+    }
+  },
+  "application": {
+    "default_environment": "paper_trading",
+    "log_level": "INFO",
+    "retry_attempts": 3,
+    "retry_delay_seconds": 2
+  }
+}

@@ -264,30 +264,39 @@ The CSV export includes:
 
 ### Quick Setup (Minimal Configuration)
 
-Create a `config.json` file in your project root with just the essential settings:
+1. Copy the example configuration file to create your own configuration:
 
-```json
-{
-  "paper_trading": {
-    "oauth": {
-      "consumer_key": "your_paper_key",
-      "access_token": "your_paper_token",
-      "access_token_secret": "your_paper_secret",
-      "encryption_key_path": "paper_trading_oauth_files/private_encryption.pem",
-      "signature_key_path": "paper_trading_oauth_files/private_signature.pem"
-    }
-  },
-  "live_trading": {
-    "oauth": {
-      "consumer_key": "your_live_key",
-      "access_token": "your_live_token",
-      "access_token_secret": "your_live_secret",
-      "encryption_key_path": "live_trading_oauth_files/private_encryption.pem",
-      "signature_key_path": "live_trading_oauth_files/private_signature.pem"
-    }
-  }
-}
-```
+   ```bash
+   cp config.example.json config.json
+   ```
+
+2. Edit the `config.json` file with your actual IBKR credentials:
+
+   ```json
+   {
+     "paper_trading": {
+       "oauth": {
+         "consumer_key": "your_paper_key",
+         "access_token": "your_paper_token",
+         "access_token_secret": "your_paper_secret",
+         "encryption_key_path": "paper_trading_oauth_files/private_encryption.pem",
+         "signature_key_path": "paper_trading_oauth_files/private_signature.pem"
+       }
+     },
+     "live_trading": {
+       "oauth": {
+         "consumer_key": "your_live_key",
+         "access_token": "your_live_token",
+         "access_token_secret": "your_live_secret",
+         "encryption_key_path": "live_trading_oauth_files/private_encryption.pem",
+         "signature_key_path": "live_trading_oauth_files/private_signature.pem"
+       }
+     }
+   }
+   ```
+
+> **⚠️ SECURITY WARNING**: Never commit your actual `config.json` file with real credentials to version control. The `.gitignore` file is configured to exclude this file, but always verify it's not being tracked before pushing to a repository.
+
 
 ## License
 
