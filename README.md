@@ -287,6 +287,131 @@ docker compose restart ibkr-api
 | `/order/<order_id>` | DELETE | Cancel an existing order |
 | `/percentage-limit-order/<symbol>` | POST | Place a percentage-based limit order |
 
+## Secure External Access
+
+To access the API from external services like Google Apps Script, you need to:
+
+1. **Set up API key authentication** (already implemented)
+2. **Expose the API securely** using one of the methods below
+3. **Use the API key in your requests** from Google Apps Script
+
+### Setting Up API Key Authentication
+
+1. Generate your first API key:
+   ```bash
+   python3 generate_key.py --name "Google Apps Script"
+   ```
+
+2. Store this key securely - you'll need it for all API requests.
+
+### Exposing the API Securely
+
+#### Option 1: Nginx with Let's Encrypt (Recommended for Production)
+
+1. Get a domain name and point it to your server
+2. Install Nginx and Let's Encrypt:
+   ```bash
+   sudo apt update
+   sudo apt install nginx certbot python3-certbot-nginx
+   ```
+
+3. Create an Nginx configuration at `/etc/nginx/sites-available/ibkr-api`:
+   ```nginx
+   server {
+       listen 80;
+       server_name your-domain.com;  # Replace with your domain
+       
+       location / {
+           return 301 https://$host$request_uri;
+       }
+   }
+
+   server {
+       listen 443 ssl;
+       server_name your-domain.com;  # Replace with your domain
+       
+       ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+       ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+       
+       # Modern SSL configuration
+       ssl_protocols TLSv1.2 TLSv1.3;
+       ssl_prefer_server_ciphers on;
+       
+       # API key authentication is handled by the API itself
+       location / {
+           proxy_pass http://localhost:5001;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+       }
+   }
+   ```
+
+4. Enable the site and get SSL certificate:
+   ```bash
+   sudo ln -s /etc/nginx/sites-available/ibkr-api /etc/nginx/sites-enabled/
+   sudo certbot --nginx -d your-domain.com
+   sudo systemctl restart nginx
+   ```
+
+#### Option 2: Cloudflare Tunnel (Easier Setup)
+
+1. Sign up for a Cloudflare account and add your domain
+2. Install the `cloudflared` client:
+   ```bash
+   curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o cloudflared.deb
+   sudo dpkg -i cloudflared.deb
+   ```
+
+3. Authenticate and create a tunnel:
+   ```bash
+   cloudflared tunnel login
+   cloudflared tunnel create ibkr-api
+   cloudflared tunnel route dns ibkr-api api.your-domain.com
+   ```
+
+4. Create a configuration file at `~/.cloudflared/config.yml`:
+   ```yaml
+   tunnel: <YOUR_TUNNEL_ID>
+   credentials-file: /root/.cloudflared/<YOUR_TUNNEL_ID>.json
+   
+   ingress:
+     - hostname: api.your-domain.com
+       service: http://localhost:5001
+     - service: http_status:404
+   ```
+
+5. Run the tunnel:
+   ```bash
+   cloudflared tunnel run
+   ```
+
+### Using the API from Google Apps Script
+
+In your Google Apps Script, include the API key in the headers of your requests:
+
+```javascript
+function callIbkrApi() {
+  const apiKey = "YOUR_API_KEY"; // Store this securely
+  const apiUrl = "https://your-domain.com/health"; // Replace with your domain
+  
+  const options = {
+    method: "GET",
+    headers: {
+      "X-API-Key": apiKey
+    },
+    muteHttpExceptions: true
+  };
+  
+  const response = UrlFetchApp.fetch(apiUrl, options);
+  const data = JSON.parse(response.getContentText());
+  Logger.log(data);
+  
+  return data;
+}
+```
+
 ## Position Pagination and CSV Export
 
 This API properly handles large portfolios with over 100 positions by implementing pagination:
