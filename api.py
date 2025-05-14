@@ -20,6 +20,7 @@ from ibind import QuestionType
 from ibind.client.ibkr_utils import OrderRequest, parse_order_request
 
 from utils import get_ibkr_client
+from auth import require_api_key, generate_api_key
 
 app = Flask(__name__)
 CORS(app)  # Enable Cross-Origin Resource Sharing
@@ -43,8 +44,36 @@ TRADING_ENV = os.getenv("IBIND_TRADING_ENV", "paper_trading")
 VALID_TIME_IN_FORCE = ['DAY', 'GTC', 'IOC', 'FOK']
 
 
+@app.route('/auth', methods=['GET'])
+def auth_check():
+    """Authentication check endpoint for Nginx auth_request."""
+    # This is handled by the require_api_key decorator
+    # If we get here, it means the API key is valid
+    return jsonify({"status": "ok"})
+
+@app.route('/generate-api-key', methods=['POST'])
+def create_api_key():
+    """Generate a new API key.
+    
+    This endpoint should only be accessible locally or through an admin interface.
+    In production, you should restrict access to this endpoint.
+    """
+    # Check if request is from localhost
+    if request.remote_addr not in ['127.0.0.1', 'localhost']:
+        return jsonify({"status": "error", "message": "This endpoint can only be accessed locally"}), 403
+    
+    data = request.json
+    name = data.get('name', 'Default')
+    
+    try:
+        api_key = generate_api_key(name)
+        return jsonify({"status": "ok", "api_key": api_key})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route('/health', methods=['GET'])
 @limiter.limit("5 per minute")
+@require_api_key
 def health_check():
     """Health check endpoint."""
     try:
