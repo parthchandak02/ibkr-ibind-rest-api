@@ -7,7 +7,7 @@ A RESTful API wrapper for Interactive Brokers (IBKR) using the IBIND library, wi
 ![IBIND](https://img.shields.io/badge/ibind-0.1.13-orange)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-## What is this?
+## Overview
 
 This is a robust REST API that lets you:
 - Trade stocks and ETFs through Interactive Brokers
@@ -26,58 +26,188 @@ Perfect for:
 ## Features
 
 - 🔒 Secure OAuth 1.0a authentication
-- 📊 Support for both paper and live trading environments
-- 🔄 Real-time market data and order management
-- 📈 Support for various order types (market, limit, percentage-based)
-- 🎯 Position and portfolio management with **full pagination support**
-- 📄 **Export positions to CSV** with comprehensive details
-- 🔍 Advanced market data queries
-- 🛡️ Rate limiting and error handling
-- 📝 Comprehensive logging
+```bash
+git clone https://github.com/yourusername/ibkr-rest-api.git
+cd ibkr-rest-api
+```
 
-## Prerequisites
+2. Install the required packages:
 
-Before you start, make sure you have:
-- Python 3.8 or higher installed
-- An IBKR account (paper or live)
-- Your IBKR API credentials ready
-- Docker (optional, if you want to run in a container)
+```bash
+pip install -r requirements.txt
+```
 
-## Quick Start (5 minutes)
+### OAuth Authentication
 
-1. **Get the code:**
-   ```bash
-   git clone https://github.com/yourusername/ibkr-ibind-rest-api.git
-   cd ibkr-ibind-rest-api
-   ```
+IBKR requires OAuth 1.0a authentication for API access. Follow these steps to set up OAuth:
 
-2. **Set up Python environment:**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
+1. Create directories for OAuth files:
 
-3. **Configure your settings:**
-   Create a `config.json` file with your IBKR credentials (see example below)
+```bash
+mkdir -p paper_trading_oauth_files live_trading_oauth_files
+```
 
-4. **Start the server:**
+2. Generate the necessary keys for OAuth authentication:
 
-   ### Production Mode (Docker):
-   ```bash
-   docker compose up -d
-   ```
+```bash
+# Generate signature key pair
+openssl genrsa -out live_trading_oauth_files/private_signature.pem 2048
+openssl rsa -in live_trading_oauth_files/private_signature.pem -outform PEM -pubout -out live_trading_oauth_files/public_signature.pem
 
-   ### Development Mode:
-   ```bash
-   python dev.py
-   ```
+# Generate encryption key pair
+openssl genrsa -out live_trading_oauth_files/private_encryption.pem 2048
+openssl rsa -in live_trading_oauth_files/private_encryption.pem -outform PEM -pubout -out live_trading_oauth_files/public_encryption.pem
 
-5. **Test it works:**
-   ```bash
-   curl http://localhost:5001/health
-   ```
-   You should see: `{"status": "ok", ...}`
+# Generate Diffie-Hellman parameters
+openssl dhparam -out live_trading_oauth_files/dh_param.pem 2048
+```
+
+3. Extract the DH prime value from the parameters file:
+
+```bash
+openssl dhparam -in live_trading_oauth_files/dh_param.pem -noout -text | grep -A 100 "prime:" | grep -v "prime:" | tr -d '\n\t: ' | tr -d '\\' > live_trading_oauth_files/dh_prime.txt
+```
+
+4. If you're using paper trading, repeat steps 2-3 for the paper trading directory.
+
+### Configuration
+
+1. Create a `config.json` file with your IBKR credentials and OAuth configuration:
+
+```json
+{
+  "paper_trading": {
+    "api": {
+      "paper_trading_host": "https://www.ibkrstaging.com/",
+      "live_trading_host": "https://api.ibkr.com/"
+    },
+    "oauth": {
+      "access_token": "YOUR_PAPER_ACCESS_TOKEN",
+      "access_token_secret": "YOUR_PAPER_ACCESS_TOKEN_SECRET",
+      "consumer_key": "YOUR_PAPER_CONSUMER_KEY",
+      "encryption_key_path": "paper_trading_oauth_files/private_encryption.pem",
+      "signature_key_path": "paper_trading_oauth_files/private_signature.pem",
+      "dh_prime": "YOUR_PAPER_DH_PRIME_VALUE",
+      "realm": "limited_poa"
+    }
+  },
+  "live_trading": {
+    "api": {
+      "paper_trading_host": "https://www.ibkrstaging.com/",
+      "live_trading_host": "https://api.ibkr.com/"
+    },
+    "oauth": {
+      "access_token": "YOUR_LIVE_ACCESS_TOKEN",
+      "access_token_secret": "YOUR_LIVE_ACCESS_TOKEN_SECRET",
+      "consumer_key": "YOUR_LIVE_CONSUMER_KEY",
+      "encryption_key_path": "live_trading_oauth_files/private_encryption.pem",
+      "signature_key_path": "live_trading_oauth_files/private_signature.pem",
+      "dh_prime": "YOUR_LIVE_DH_PRIME_VALUE",
+      "realm": "limited_poa"
+    }
+  }
+}
+```
+
+Replace the placeholder values with your actual IBKR credentials. For the DH prime value, copy the contents of the `dh_prime.txt` file generated in the previous step.
+
+**Important Note**: Make sure the DH prime value does not have the prefix "prime:" in it. It should be just the hexadecimal value.
+
+## Running the API
+
+### Using the Run Script
+
+The easiest way to run the API is to use the provided run script:
+
+```bash
+python run_server.py --env live_trading --port 5001
+```
+
+Options:
+- `--env`: Trading environment (`paper_trading` or `live_trading`, default: `live_trading`)
+- `--port`: Port to run the server on (default: `5001`)
+- `--debug`: Run in debug mode
+
+The script will automatically:
+1. Set the correct working directory
+2. Configure environment variables
+3. Verify OAuth key files exist
+4. Start the API server
+
+### Using Docker
+
+For production use, it's recommended to use Docker:
+
+```bash
+docker-compose up -d
+```
+
+This will build and start the Docker container with the API server. The Docker setup includes:
+
+- Proper mounting of configuration and OAuth files
+- Environment variable configuration
+- Health checks and automatic restarts
+- Resource limits to prevent container from using too many resources
+
+## API Endpoints
+
+### Health Check
+
+- `GET /health`: Check if the API is running and connected to IBKR
+
+### Account Management
+
+- `GET /account`: Get account information
+- `GET /positions`: Get all positions
+- `GET /positions/csv`: Export positions to CSV
+
+### Order Management
+
+- `GET /orders`: Get all orders
+- `GET /orders/{order_id}`: Get a specific order
+- `POST /orders`: Place a new order
+- `DELETE /orders/{order_id}`: Cancel an order
+- `POST /orders/percentage-limit`: Place a percentage-based limit order
+
+#### Development Mode:
+```bash
+python api.py
+```
+
+#### Production Mode (Docker):
+```bash
+docker compose up -d
+```
+
+### 6. Test the Connection
+
+```bash
+curl http://localhost:5001/health
+```
+
+You should see a response like: `{"status": "ok", ...}`
+
+## API Endpoints
+
+### Account Management
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Check API health and connection status |
+| `/account` | GET | Get account information, positions, and ledger |
+| `/positions` | GET | Get detailed position information (paginated) |
+| `/positions/csv` | GET | Export all positions to CSV file |
+| `/switch-environment` | POST | Switch between paper and live trading |
+
+### Order Management
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/orders` | GET | Get all orders for the account |
+| `/order/<order_id>` | GET | Get details for a specific order |
+| `/order` | POST | Place a new order |
+| `/order/<order_id>` | DELETE | Cancel an existing order |
+| `/percentage-limit-order/<symbol>` | POST | Place a percentage-based limit order |
 
 ## Development Workflow
 
