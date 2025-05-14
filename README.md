@@ -120,7 +120,7 @@ Replace the placeholder values with your actual IBKR credentials. For the DH pri
 The easiest way to run the API is to use the provided run script:
 
 ```bash
-python run_server.py --env live_trading --port 5001
+python3 run_server.py --env live_trading --port 5001
 ```
 
 Options:
@@ -148,6 +148,28 @@ This will build and start the Docker container with the API server. The Docker s
 - Environment variable configuration
 - Health checks and automatic restarts
 - Resource limits to prevent container from using too many resources
+
+#### Environment Variables
+
+You can customize the Docker deployment using environment variables:
+
+1. **Create a .env file**:
+   ```bash
+   cp .env.example .env
+   # Edit the .env file with your preferred settings
+   nano .env
+   ```
+
+2. **Available environment variables**:
+   - `TRADING_ENV`: Trading environment (`paper_trading` or `live_trading`)
+   - `PORT`: Port to expose the API on
+   - `DEBUG`: Set to `true` for development mode
+   - `ACCOUNT_ID`: Specific IBKR account ID (optional)
+
+3. **Override settings on the command line**:
+   ```bash
+   TRADING_ENV=paper_trading PORT=8080 docker-compose up -d
+   ```
 
 ## API Endpoints
 
