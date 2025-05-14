@@ -19,6 +19,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     gcc \
     libc6-dev \
+    curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -45,5 +46,5 @@ EXPOSE 5001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:5001/health || exit 1
 
-# Command to run the application
-CMD ["python", "api.py"]
+# Command to run the application using the new run_server.py script
+CMD ["python", "run_server.py", "--env", "${IBIND_TRADING_ENV:-live_trading}", "--port", "5001"]

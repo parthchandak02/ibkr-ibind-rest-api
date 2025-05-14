@@ -4,6 +4,7 @@ Utility functions for the ibind REST API.
 import os
 import logging
 import time
+from pathlib import Path
 from ibind import IbkrClient, ibind_logs_initialize
 from ibind.oauth.oauth1a import OAuth1aConfig
 from ibind.support.errors import ExternalBrokerError
@@ -31,7 +32,10 @@ def get_ibkr_client(environment="paper_trading", max_retries=8, retry_delay=2):
     """
     # Set environment variable for OAuth
     os.environ["IBIND_USE_OAUTH"] = "true"
-
+    
+    # Get base directory
+    base_dir = Path(__file__).resolve().parent
+    
     # Load configuration
     config = Config(environment)
     oauth_config = config.get_oauth_config()
@@ -40,14 +44,31 @@ def get_ibkr_client(environment="paper_trading", max_retries=8, retry_delay=2):
     # Get host based on environment
     host = api_config.get('paper_trading_host' if environment == 'paper_trading' else 'live_trading_host')
 
+    # Ensure absolute paths for key files
+    oauth_dir = f"{environment}_oauth_files"
+    encryption_key_path = str(base_dir / oauth_dir / "private_encryption.pem")
+    signature_key_path = str(base_dir / oauth_dir / "private_signature.pem")
+    
+    # Log the paths for debugging
+    logger.info(f"Using encryption key path: {encryption_key_path}")
+    logger.info(f"Using signature key path: {signature_key_path}")
+    
+    # Verify files exist
+    if not os.path.exists(encryption_key_path):
+        logger.error(f"Encryption key file not found: {encryption_key_path}")
+        raise FileNotFoundError(f"Encryption key file not found: {encryption_key_path}")
+    if not os.path.exists(signature_key_path):
+        logger.error(f"Signature key file not found: {signature_key_path}")
+        raise FileNotFoundError(f"Signature key file not found: {signature_key_path}")
+
     # Set up OAuth configuration
     oauth1a_config = OAuth1aConfig(
         access_token=oauth_config.get("access_token"),
         access_token_secret=oauth_config.get("access_token_secret"),
         consumer_key=oauth_config.get("consumer_key"),
         dh_prime=oauth_config.get("dh_prime"),
-        encryption_key_fp=oauth_config.get("encryption_key_path"),
-        signature_key_fp=oauth_config.get("signature_key_path"),
+        encryption_key_fp=encryption_key_path,
+        signature_key_fp=signature_key_path,
         realm=oauth_config.get("realm", "limited_poa")
     )
 
