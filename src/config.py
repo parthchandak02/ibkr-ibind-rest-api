@@ -4,21 +4,20 @@ Config module for the ibind REST API.
 This module handles loading configuration from JSON files and environment variables.
 """
 import json
+import os
 from pathlib import Path
 
 
 class Config:
-    """Configuration class that handles loading authentication settings from files."""
+    """Configuration class that handles loading authentication settings for live trading."""
 
-    def __init__(self, environment="paper_trading"):
+    def __init__(self, environment="live_trading"):
         """
-        Initialize the configuration.
-
-        Args:
-            environment (str): Either "paper_trading" or "live_trading"
+        Initialize the configuration for live trading.
         """
         self.environment = environment
-        self.config_path = Path(__file__).resolve().parent / "config.json"
+        # Look for config.json in the project root (parent of src directory)
+        self.config_path = Path(__file__).resolve().parent.parent / "config.json"
         self.config = self._load_config()
 
     def _load_config(self):
@@ -28,32 +27,33 @@ class Config:
 
     def get_oauth_config(self):
         """Get OAuth configuration with absolute file paths."""
-        oauth_config = self.config[self.environment]["oauth"]
-        base_dir = Path(__file__).resolve().parent
-
-        # Convert relative paths to absolute paths
-        for key in ["encryption_key_path", "signature_key_path"]:
-            if key in oauth_config:
-                oauth_config[key] = str(base_dir / oauth_config[key])
-
+        oauth_config = self.config["live_trading"]["oauth"]
+        # Base directory is the project root (parent of src directory)
+        base_dir = Path(__file__).resolve().parent.parent
+        oauth_dir = "live_trading_oauth_files"
+        
+        # Set default paths for OAuth files
+        oauth_config["encryption_key_path"] = str(base_dir / oauth_dir / "private_encryption.pem")
+        oauth_config["signature_key_path"] = str(base_dir / oauth_dir / "private_signature.pem")
+        
         return oauth_config
 
     def get_api_config(self):
         """Get API configuration."""
-        return self.config[self.environment]["api"]
+        return self.config["live_trading"]["api"]
 
     def get_application_config(self):
         """Get application configuration."""
         return self.config.get("application", {})
 
     def is_paper_trading(self):
-        """Check if using paper trading."""
-        return self.environment == "paper_trading"
+        """Always return False since we only support live trading."""
+        return False
 
     def get_complete_config(self):
         """Get complete configuration as a dictionary."""
         return {
-            "environment": self.environment,
+            "environment": "live_trading",
             "oauth": self.get_oauth_config(),
             "api": self.get_api_config(),
             "application": self.get_application_config()

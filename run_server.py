@@ -1,83 +1,34 @@
 #!/usr/bin/env python3
 """
-IBKR REST API Server Launcher
+IBKR REST API Server Entry Point
 
-This script provides a convenient way to start the IBKR REST API server
-with proper environment configuration. It handles path resolution and
-environment setup automatically.
+Simple entry point script for the IBKR REST API server.
+Uses the Application class for all startup logic.
 """
-import os
 import sys
 import argparse
-from pathlib import Path
+import logging
+from src import Application
 
-def run_api_server(environment="live_trading", port=5001, debug=False):
-    """
-    Run the IBKR REST API server with the specified configuration.
-    
-    Args:
-        environment (str): Trading environment - either "paper_trading" or "live_trading"
-        port (int): Port to run the server on
-        debug (bool): Whether to run in debug mode
-    """
-    # Set the working directory to the script directory
-    base_dir = Path(__file__).resolve().parent
-    os.chdir(base_dir)
-    print(f"Working directory set to: {os.getcwd()}")
-    
-    # Set environment variables
-    os.environ["IBIND_TRADING_ENV"] = environment
-    os.environ["IBIND_USE_OAUTH"] = "true"
-    
-    # Print the paths to the OAuth files for verification
-    oauth_dir = f"{environment}_oauth_files"
-    encryption_path = base_dir / oauth_dir / "private_encryption.pem"
-    signature_path = base_dir / oauth_dir / "private_signature.pem"
-    
-    print(f"Environment: {environment}")
-    print(f"Encryption key path: {encryption_path}")
-    print(f"Signature key path: {signature_path}")
-    
-    # Verify that the OAuth files exist
-    if not encryption_path.exists():
-        print(f"ERROR: Encryption key file not found at: {encryption_path}")
-        print("Please make sure you have generated the OAuth keys and placed them in the correct directory.")
-        return 1
-    if not signature_path.exists():
-        print(f"ERROR: Signature key file not found at: {signature_path}")
-        print("Please make sure you have generated the OAuth keys and placed them in the correct directory.")
-        return 1
-    
-    print("✅ OAuth files verified")
-    
-    # Import and run the API
-    try:
-        print("Importing API module...")
-        import api
-        
-        print(f"Starting API server on port {port}...")
-        api.app.run(debug=debug, port=port, host='0.0.0.0')
-    except Exception as e:
-        print(f"Error running API server: {e}")
-        import traceback
-        traceback.print_exc()
-        return 1
-    
-    return 0
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run the IBKR REST API server")
+def main():
+    """Main entry point for the IBKR REST API server."""
+    parser = argparse.ArgumentParser(description="IBKR REST API Server")
     parser.add_argument(
         "--env", 
-        choices=["paper_trading", "live_trading"], 
+        choices=["live_trading"], 
         default="live_trading",
-        help="Trading environment (paper_trading or live_trading)"
+        help="Trading environment (only live_trading is supported)"
     )
     parser.add_argument(
-        "--port", 
-        type=int, 
-        default=5001,
-        help="Port to run the server on"
+        "--port",
+        type=int,
+        help="Port to run the server on (defaults to PORT env var or 8080)"
     )
     parser.add_argument(
         "--debug", 
@@ -86,4 +37,15 @@ if __name__ == "__main__":
     )
     
     args = parser.parse_args()
-    sys.exit(run_api_server(args.env, args.port, args.debug))
+    
+    try:
+        # Create and run the application
+        app = Application(environment=args.env)
+        app.run(port=args.port, debug=args.debug)
+        return 0
+    except Exception as e:
+        logging.error(f"Failed to start server: {e}")
+        return 1
+
+if __name__ == "__main__":
+    sys.exit(main())

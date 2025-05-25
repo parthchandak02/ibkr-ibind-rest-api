@@ -1,10 +1,9 @@
+#!/usr/bin/env python3
 """
-ibind REST API for trading and account management.
+IBKR REST API
 
-This API provides endpoints for:
-1. Checking account information
-2. Placing orders
-3. Checking active, expired, or historical orders
+A Flask-based REST API for Interactive Brokers (IBKR) trading operations.
+Provides endpoints for account management, position tracking, and order execution.
 """
 import os
 import datetime
@@ -19,8 +18,8 @@ from flask_limiter.util import get_remote_address
 from ibind import QuestionType
 from ibind.client.ibkr_utils import OrderRequest, parse_order_request
 
-from utils import get_ibkr_client
-from auth import require_api_key, generate_api_key
+from .utils import get_ibkr_client
+from .auth import require_api_key, generate_api_key
 
 app = Flask(__name__)
 CORS(app)  # Enable Cross-Origin Resource Sharing
@@ -70,6 +69,11 @@ def create_api_key():
         return jsonify({"status": "ok", "api_key": api_key})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/cloud-run-health', methods=['GET'])
+def cloud_run_health_check():
+    """Simple health check endpoint for Cloud Run that doesn't require authentication."""
+    return jsonify({"status": "ok", "environment": TRADING_ENV})
 
 @app.route('/health', methods=['GET'])
 @limiter.limit("5 per minute")
@@ -942,4 +946,4 @@ def get_positions():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5001, host='0.0.0.0')
+    app.run(debug=True, port=int(os.environ.get('PORT', 8080)), host='0.0.0.0')

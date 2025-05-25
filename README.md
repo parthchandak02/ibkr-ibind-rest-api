@@ -1,589 +1,200 @@
-# IBKR REST API
+# 🚀 IBKR REST API
 
-A RESTful API wrapper for Interactive Brokers (IBKR) using the IBIND library, with proper pagination support for large portfolios.
+A secure RESTful API wrapper for Interactive Brokers (IBKR) trading platform.
 
-![Python](https://img.shields.io/badge/python-3.8%2B-blue)
-![Flask](https://img.shields.io/badge/flask-3.0.2-green)
-![IBIND](https://img.shields.io/badge/ibind-0.1.13-orange)
-![License](https://img.shields.io/badge/license-MIT-lightgrey)
+## ⚡ Quick Start
 
-## Overview
-
-This is a robust REST API that lets you:
-- Trade stocks and ETFs through Interactive Brokers
-- Switch between paper trading (practice) and live trading
-- Place different types of orders (market, limit, etc.)
-- Check your account information and orders
-- **Retrieve all positions with proper pagination** (supports 100+ positions)
-- **Export positions to CSV** for easy analysis
-
-Perfect for:
-- Building trading applications
-- Automating your trading strategies
-- Learning to trade with paper money before going live
-- Managing large portfolios with many positions
-
-## Features
-
-- 🔒 Secure OAuth 1.0a authentication
-```bash
-git clone https://github.com/yourusername/ibkr-rest-api.git
-cd ibkr-rest-api
-```
-
-2. Install the required packages:
-
-```bash
-pip install -r requirements.txt
-```
-
-### OAuth Authentication
-
-IBKR requires OAuth 1.0a authentication for API access. Follow these steps to set up OAuth:
-
-1. Create directories for OAuth files:
-
-```bash
-mkdir -p paper_trading_oauth_files live_trading_oauth_files
-```
-
-2. Generate the necessary keys for OAuth authentication:
-
-```bash
-# Generate signature key pair
-openssl genrsa -out live_trading_oauth_files/private_signature.pem 2048
-openssl rsa -in live_trading_oauth_files/private_signature.pem -outform PEM -pubout -out live_trading_oauth_files/public_signature.pem
-
-# Generate encryption key pair
-openssl genrsa -out live_trading_oauth_files/private_encryption.pem 2048
-openssl rsa -in live_trading_oauth_files/private_encryption.pem -outform PEM -pubout -out live_trading_oauth_files/public_encryption.pem
-
-# Generate Diffie-Hellman parameters
-openssl dhparam -out live_trading_oauth_files/dh_param.pem 2048
-```
-
-3. Extract the DH prime value from the parameters file:
-
-```bash
-openssl dhparam -in live_trading_oauth_files/dh_param.pem -noout -text | grep -A 100 "prime:" | grep -v "prime:" | tr -d '\n\t: ' | tr -d '\\' > live_trading_oauth_files/dh_prime.txt
-```
-
-4. If you're using paper trading, repeat steps 2-3 for the paper trading directory.
-
-### Configuration
-
-1. Create a `config.json` file with your IBKR credentials and OAuth configuration:
-
-```json
-{
-  "paper_trading": {
-    "api": {
-      "paper_trading_host": "https://www.ibkrstaging.com/",
-      "live_trading_host": "https://api.ibkr.com/"
-    },
-    "oauth": {
-      "access_token": "YOUR_PAPER_ACCESS_TOKEN",
-      "access_token_secret": "YOUR_PAPER_ACCESS_TOKEN_SECRET",
-      "consumer_key": "YOUR_PAPER_CONSUMER_KEY",
-      "encryption_key_path": "paper_trading_oauth_files/private_encryption.pem",
-      "signature_key_path": "paper_trading_oauth_files/private_signature.pem",
-      "dh_prime": "YOUR_PAPER_DH_PRIME_VALUE",
-      "realm": "limited_poa"
-    }
-  },
-  "live_trading": {
-    "api": {
-      "paper_trading_host": "https://www.ibkrstaging.com/",
-      "live_trading_host": "https://api.ibkr.com/"
-    },
-    "oauth": {
-      "access_token": "YOUR_LIVE_ACCESS_TOKEN",
-      "access_token_secret": "YOUR_LIVE_ACCESS_TOKEN_SECRET",
-      "consumer_key": "YOUR_LIVE_CONSUMER_KEY",
-      "encryption_key_path": "live_trading_oauth_files/private_encryption.pem",
-      "signature_key_path": "live_trading_oauth_files/private_signature.pem",
-      "dh_prime": "YOUR_LIVE_DH_PRIME_VALUE",
-      "realm": "limited_poa"
-    }
-  }
-}
-```
-
-Replace the placeholder values with your actual IBKR credentials. For the DH prime value, copy the contents of the `dh_prime.txt` file generated in the previous step.
-
-**Important Note**: Make sure the DH prime value does not have the prefix "prime:" in it. It should be just the hexadecimal value.
-
-## Running the API
-
-### Using the Run Script
-
-The easiest way to run the API is to use the provided run script:
-
-```bash
-python3 run_server.py --env live_trading --port 5001
-```
-
-Options:
-- `--env`: Trading environment (`paper_trading` or `live_trading`, default: `live_trading`)
-- `--port`: Port to run the server on (default: `5001`)
-- `--debug`: Run in debug mode
-
-The script will automatically:
-1. Set the correct working directory
-2. Configure environment variables
-3. Verify OAuth key files exist
-4. Start the API server
-
-### Using Docker
-
-For production use, it's recommended to use Docker:
-
-```bash
-docker-compose up -d
-```
-
-This will build and start the Docker container with the API server. The Docker setup includes:
-
-- Proper mounting of configuration and OAuth files
-- Environment variable configuration
-- Health checks and automatic restarts
-- Resource limits to prevent container from using too many resources
-
-#### Environment Variables
-
-You can customize the Docker deployment using environment variables:
-
-1. **Create a .env file**:
-   ```bash
-   cp .env.example .env
-   # Edit the .env file with your preferred settings
-   nano .env
-   ```
-
-2. **Available environment variables**:
-   - `TRADING_ENV`: Trading environment (`paper_trading` or `live_trading`)
-   - `PORT`: Port to expose the API on
-   - `DEBUG`: Set to `true` for development mode
-   - `ACCOUNT_ID`: Specific IBKR account ID (optional)
-
-3. **Override settings on the command line**:
-   ```bash
-   TRADING_ENV=paper_trading PORT=8080 docker-compose up -d
-   ```
-
-## API Endpoints
-
-### Health Check
-
-- `GET /health`: Check if the API is running and connected to IBKR
-
-### Account Management
-
-- `GET /account`: Get account information
-- `GET /positions`: Get all positions
-- `GET /positions/csv`: Export positions to CSV
-
-### Order Management
-
-- `GET /orders`: Get all orders
-- `GET /orders/{order_id}`: Get a specific order
-- `POST /orders`: Place a new order
-- `DELETE /orders/{order_id}`: Cancel an order
-- `POST /orders/percentage-limit`: Place a percentage-based limit order
-
-#### Development Mode:
-```bash
-python api.py
-```
-
-#### Production Mode (Docker):
-```bash
-docker compose up -d
-```
-
-### 6. Test the Connection
-
-```bash
-curl http://localhost:5001/health
-```
-
-You should see a response like: `{"status": "ok", ...}`
-
-## API Endpoints
-
-### Account Management
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Check API health and connection status |
-| `/account` | GET | Get account information, positions, and ledger |
-| `/positions` | GET | Get detailed position information (paginated) |
-| `/positions/csv` | GET | Export all positions to CSV file |
-| `/switch-environment` | POST | Switch between paper and live trading |
-
-### Order Management
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/orders` | GET | Get all orders for the account |
-| `/order/<order_id>` | GET | Get details for a specific order |
-| `/order` | POST | Place a new order |
-| `/order/<order_id>` | DELETE | Cancel an existing order |
-| `/percentage-limit-order/<symbol>` | POST | Place a percentage-based limit order |
-
-## Development Workflow
-
-This project supports two development workflows:
-
-### 1. Direct Flask Development (Fastest)
-
-For rapid development iterations:
-
+### Local Development
 ```bash
 # Activate virtual environment
-source venv/bin/activate
+source ~/aienv/bin/activate
 
-# Install dependencies
-pip install -r requirements.txt
+# Generate API key
+python3 utils/generate_key.py --name "My API Key"
 
-# Run development server (with auto-reload)
-python dev.py
+# Start the server
+python3 run_server.py --env live_trading --port 8080 --debug
 ```
 
-Changes to your code will be applied automatically without restarting the server.
-
-### 2. Docker with Code Mounting
-
-For development in a containerized environment:
-
+### Test Locally
 ```bash
-# Start container with volume mounts
-docker compose up -d
-
-# Make changes to your local files
-# Restart container to apply changes
-docker compose restart ibkr-api
+curl -H "X-API-Key: YOUR_API_KEY_HERE" http://localhost:8080/health
 ```
 
-## API Endpoints
-
-### Account Management
+## 📡 API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/health` | GET | Check API health and connection status |
-| `/account` | GET | Get account information, positions, and ledger |
-| `/positions` | GET | Get detailed position information (paginated) |
-| `/positions/csv` | GET | Export all positions to CSV file |
-| `/switch-environment` | POST | Switch between paper and live trading |
+| `/health` | GET | API health check |
+| `/account` | GET | Account information |
+| `/positions` | GET | Portfolio positions |
+| `/orders` | GET | Order history |
+| `/order` | POST | Place new order |
 
-### Order Management
+## 🔐 Authentication
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/orders` | GET | Get all orders for the account |
-| `/order/<order_id>` | GET | Get details for a specific order |
-| `/order` | POST | Place a new order |
-| `/order/<order_id>` | DELETE | Cancel an existing order |
-| `/percentage-limit-order/<symbol>` | POST | Place a percentage-based limit order |
+All requests require an API key in the header:
+```bash
+curl -H "X-API-Key: YOUR_API_KEY_HERE" https://your-api.com/health
+```
 
-## Secure External Access
+## 📁 Project Structure
 
-To access the API from external services like Google Apps Script, you need to:
+```
+ibind_rest_api/
+├── run_server.py          # Entry point
+├── src/                   # Main application
+│   ├── application.py     # Application class
+│   ├── api.py            # Flask REST API
+│   ├── auth.py           # Authentication
+│   ├── config.py         # Configuration
+│   └── utils.py          # IBKR client utilities
+└── utils/                 # Utility scripts
+    └── generate_key.py    # API key generator
+```
 
-1. **Set up API key authentication** (already implemented)
-2. **Expose the API securely** using one of the methods below
-3. **Use the API key in your requests** from Google Apps Script
+## ☁️ Deploy to Render.com (RECOMMENDED)
 
-### Setting Up API Key Authentication
+### Why Render?
+- ✅ 750 free hours/month (continuous running)
+- ✅ Automatic HTTPS
+- ✅ Easy environment variables
+- ✅ Git-based deployment
 
-1. Generate your first API key:
+### Step-by-Step Deployment:
+
+1. **Push to GitHub**:
    ```bash
-   python3 generate_key.py --name "Google Apps Script"
+   git add .
+   git commit -m "Ready for deployment"
+   git push origin main
    ```
 
-2. Store this key securely - you'll need it for all API requests.
+2. **Sign up at Render.com**:
+   - Go to https://render.com
+   - Sign up with your GitHub account
 
-### Exposing the API Securely
+3. **Create New Web Service**:
+   - Click "New +" → "Web Service"
+   - Connect your GitHub repository
+   - Select your `ibind_rest_api` repo
 
-#### Option 1: Nginx with Let's Encrypt (Recommended for Production)
+4. **Configure Service**:
+   - **Name**: `ibkr-api`
+   - **Environment**: `Docker`
+   - **Dockerfile Path**: `./Dockerfile`
+   - **Instance Type**: `Free`
 
-1. Get a domain name and point it to your server
-2. Install Nginx and Let's Encrypt:
-   ```bash
-   sudo apt update
-   sudo apt install nginx certbot python3-certbot-nginx
+5. **Environment Variables**:
+   ```
+   IBIND_TRADING_ENV=live_trading
+   PORT=8080
    ```
 
-3. Create an Nginx configuration at `/etc/nginx/sites-available/ibkr-api`:
-   ```nginx
-   server {
-       listen 80;
-       server_name your-domain.com;  # Replace with your domain
-       
-       location / {
-           return 301 https://$host$request_uri;
-       }
-   }
+6. **Upload Files** (via Render dashboard):
+   - Upload your `config.json`
+   - Upload your `api_keys.json`
+   - Upload your `live_trading_oauth_files/` directory
 
-   server {
-       listen 443 ssl;
-       server_name your-domain.com;  # Replace with your domain
-       
-       ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
-       ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
-       
-       # Modern SSL configuration
-       ssl_protocols TLSv1.2 TLSv1.3;
-       ssl_prefer_server_ciphers on;
-       
-       # API key authentication is handled by the API itself
-       location / {
-           proxy_pass http://localhost:5001;
-           proxy_set_header Host $host;
-           proxy_set_header X-Real-IP $remote_addr;
-           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-           proxy_set_header X-Forwarded-Proto $scheme;
-       }
-   }
-   ```
+7. **Deploy**: Click "Create Web Service"
 
-4. Enable the site and get SSL certificate:
-   ```bash
-   sudo ln -s /etc/nginx/sites-available/ibkr-api /etc/nginx/sites-enabled/
-   sudo certbot --nginx -d your-domain.com
-   sudo systemctl restart nginx
-   ```
+### Test Your Deployment:
+```bash
+curl -H "X-API-Key: YOUR_API_KEY_HERE" https://your-app.onrender.com/health
+```
 
-#### Option 2: Cloudflare Tunnel (Easier Setup)
+## 📱 Google Apps Script Integration
 
-1. Sign up for a Cloudflare account and add your domain
-2. Install the `cloudflared` client:
-   ```bash
-   curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o cloudflared.deb
-   sudo dpkg -i cloudflared.deb
-   ```
-
-3. Authenticate and create a tunnel:
-   ```bash
-   cloudflared tunnel login
-   cloudflared tunnel create ibkr-api
-   cloudflared tunnel route dns ibkr-api api.your-domain.com
-   ```
-
-4. Create a configuration file at `~/.cloudflared/config.yml`:
-   ```yaml
-   tunnel: <YOUR_TUNNEL_ID>
-   credentials-file: /root/.cloudflared/<YOUR_TUNNEL_ID>.json
-   
-   ingress:
-     - hostname: api.your-domain.com
-       service: http://localhost:5001
-     - service: http_status:404
-   ```
-
-5. Run the tunnel:
-   ```bash
-   cloudflared tunnel run
-   ```
-
-### Using the API from Google Apps Script
-
-In your Google Apps Script, include the API key in the headers of your requests:
-
+### Basic Functions:
 ```javascript
-function callIbkrApi() {
-  const apiKey = "YOUR_API_KEY"; // Store this securely
-  const apiUrl = "https://your-domain.com/health"; // Replace with your domain
+function getAccountInfo() {
+  const apiKey = "YOUR_API_KEY_HERE";
+  const baseUrl = "https://your-app.onrender.com";
   
-  const options = {
-    method: "GET",
-    headers: {
-      "X-API-Key": apiKey
-    },
-    muteHttpExceptions: true
-  };
+  const response = UrlFetchApp.fetch(`${baseUrl}/account`, {
+    'headers': {
+      'X-API-Key': apiKey,
+      'Content-Type': 'application/json'
+    }
+  });
   
-  const response = UrlFetchApp.fetch(apiUrl, options);
-  const data = JSON.parse(response.getContentText());
-  Logger.log(data);
+  return JSON.parse(response.getContentText());
+}
+
+function getPositions() {
+  const apiKey = "YOUR_API_KEY_HERE";
+  const baseUrl = "https://your-app.onrender.com";
   
-  return data;
+  const response = UrlFetchApp.fetch(`${baseUrl}/positions`, {
+    'headers': { 'X-API-Key': apiKey }
+  });
+  
+  return JSON.parse(response.getContentText());
 }
 ```
 
-## Position Pagination and CSV Export
-
-This API properly handles large portfolios with over 100 positions by implementing pagination:
-
-```bash
-# Get the first 10 positions (default)
-curl http://localhost:5001/positions
-
-# Get more positions
-curl http://localhost:5001/positions?limit=50
-
-# Export all positions to CSV
-curl -o positions.csv http://localhost:5001/positions/csv
+### Write to Google Sheets:
+```javascript
+function updatePositionsSheet() {
+  const positions = getPositions();
+  const sheet = SpreadsheetApp.getActiveSheet();
+  
+  // Clear existing data
+  sheet.clear();
+  
+  // Headers
+  sheet.getRange(1, 1, 1, 4).setValues([
+    ['Symbol', 'Position', 'Market Value', 'P&L']
+  ]);
+  
+  // Data
+  positions.positions.forEach((pos, index) => {
+    sheet.getRange(index + 2, 1, 1, 4).setValues([[
+      pos.ticker,
+      pos.position,
+      pos.mktValue,
+      pos.unrealizedPnl
+    ]]);
+  });
+}
 ```
 
-The CSV export includes:
-- Symbol and full name
-- Position size and cost basis
-- Current market price and value
-- Unrealized P&L (both $ and %)
-- Sector, asset type and exchange information
+## 🔧 Alternative Deployment Options
 
-## Cloud Deployment
+| Platform | Free Tier | Pros | Cons |
+|----------|-----------|------|------|
+| **Render** | 750 hrs/month | Easy setup, Docker | Sleep after 15min idle |
+| **Railway** | $5 credit | Fast deployment | Limited free tier |
+| **Fly.io** | 3 apps free | Global edge | Complex CLI |
 
-### Option 1: Digital Ocean (Recommended)
+## ⚙️ Configuration Files
 
-1. Create a Digital Ocean Droplet with Docker pre-installed
-2. Set up a firewall in Digital Ocean:
-   ```bash
-   # Only allow specific IPs to access your API
-   ufw allow from your_ip_address to any port 5001
-   ufw enable
-   ```
-3. Deploy using Docker:
-   ```bash
-   git clone https://github.com/yourusername/ibkr-ibind-rest-api.git
-   cd ibkr-ibind-rest-api
-   docker compose up -d
-   ```
+- `config.json` - IBKR OAuth credentials (gitignored)
+- `api_keys.json` - API access keys (gitignored)  
+- `live_trading_oauth_files/` - OAuth certificates (gitignored)
 
-### Option 2: Heroku
+## 🛡️ Security
 
-1. Install Heroku CLI
-2. Add Heroku-specific files:
-   ```bash
-   # Create Procfile
-   echo "web: docker compose up" > Procfile
-   ```
-3. Deploy:
-   ```bash
-   heroku create your-app-name
-   heroku container:push web
-   heroku container:release web
-   ```
+- All sensitive files are in `.gitignore`
+- API key authentication required
+- OAuth 1.0a for IBKR communication
+- HTTPS enforced in production
 
-### Security Considerations for Public Deployment ⚠️
+## 🧪 Testing Commands
 
-1. **DO NOT** expose the API publicly without authentication:
-   - Set up a reverse proxy (like Nginx) with SSL/TLS
-   - Implement API key authentication
-   - Use IP whitelisting to restrict access
+After deployment, test these endpoints:
 
-2. **Required Security Measures:**
-   ```nginx
-   # Example Nginx configuration
-   server {
-       listen 443 ssl;
-       server_name your.domain.com;
+```bash
+# Health check
+curl -H "X-API-Key: YOUR_API_KEY_HERE" https://your-app.onrender.com/health
 
-       ssl_certificate /path/to/cert.pem;
-       ssl_certificate_key /path/to/key.pem;
+# Account info  
+curl -H "X-API-Key: YOUR_API_KEY_HERE" https://your-app.onrender.com/account
 
-       location / {
-           # Only allow specific IPs
-           allow your_ip_address;
-           deny all;
+# Positions
+curl -H "X-API-Key: YOUR_API_KEY_HERE" https://your-app.onrender.com/positions
+```
 
-           # API key check
-           if ($http_x_api_key != "your_secret_key") {
-               return 403;
-           }
+---
 
-           proxy_pass http://localhost:5001;
-       }
-   }
-   ```
-
-3. **Environment Variables:**
-   - Store all sensitive data in environment variables
-   - Use secrets management service if available
-   ```bash
-   # Example .env file (DO NOT commit this)
-   IBIND_API_KEY=your_secret_key
-   IBIND_ALLOWED_IPS=1.2.3.4,5.6.7.8
-   ```
-
-## Basic Usage Examples
-
-1. **Check your account:**
-   ```bash
-   curl http://localhost:5001/account
-   ```
-
-2. **Place a market order:**
-   ```bash
-   curl -X POST http://localhost:5001/order \
-     -H "Content-Type: application/json" \
-     -d '{
-       "conid": "265598",  # AAPL's contract ID
-       "side": "BUY",
-       "quantity": 1,
-       "order_type": "MKT"
-     }'
-   ```
-
-3. **View your orders:**
-   ```bash
-   curl http://localhost:5001/orders
-   ```
-
-4. **Export positions to CSV:**
-   ```bash
-   curl -o positions.csv http://localhost:5001/positions/csv
-   ```
-
-## Configuration
-
-### Quick Setup (Minimal Configuration)
-
-1. Copy the example configuration file to create your own configuration:
-
-   ```bash
-   cp config.example.json config.json
-   ```
-
-2. Edit the `config.json` file with your actual IBKR credentials:
-
-   ```json
-   {
-     "paper_trading": {
-       "oauth": {
-         "consumer_key": "your_paper_key",
-         "access_token": "your_paper_token",
-         "access_token_secret": "your_paper_secret",
-         "encryption_key_path": "paper_trading_oauth_files/private_encryption.pem",
-         "signature_key_path": "paper_trading_oauth_files/private_signature.pem"
-       }
-     },
-     "live_trading": {
-       "oauth": {
-         "consumer_key": "your_live_key",
-         "access_token": "your_live_token",
-         "access_token_secret": "your_live_secret",
-         "encryption_key_path": "live_trading_oauth_files/private_encryption.pem",
-         "signature_key_path": "live_trading_oauth_files/private_signature.pem"
-       }
-     }
-   }
-   ```
-
-> **⚠️ SECURITY WARNING**: Never commit your actual `config.json` file with real credentials to version control. The `.gitignore` file is configured to exclude this file, but always verify it's not being tracked before pushing to a repository.
-
-
-## License
-
-MIT
-
-## Contributing
-
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
-
-## Acknowledgements
-
-- Built with [IBIND](https://github.com/Voyz/ibind) library
-- Uses Flask for the REST API framework
+**🚀 Ready to deploy!** Your API is now ready for production deployment.

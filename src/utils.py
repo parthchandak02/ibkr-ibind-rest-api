@@ -9,18 +9,18 @@ from ibind import IbkrClient, ibind_logs_initialize
 from ibind.oauth.oauth1a import OAuth1aConfig
 from ibind.support.errors import ExternalBrokerError
 
-from config import Config
+from .config import Config
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def get_ibkr_client(environment="paper_trading", max_retries=8, retry_delay=2):
+def get_ibkr_client(environment="live_trading", max_retries=8, retry_delay=2):
     """
     Get a configured IbkrClient with automatic retry logic.
 
     Args:
-        environment (str): Trading environment (paper_trading or live_trading)
+        environment (str): Trading environment (only live_trading is supported)
         max_retries (int): Maximum number of connection attempts
         retry_delay (int): Base delay between retries in seconds (increases with each attempt)
 
@@ -33,16 +33,16 @@ def get_ibkr_client(environment="paper_trading", max_retries=8, retry_delay=2):
     # Set environment variable for OAuth
     os.environ["IBIND_USE_OAUTH"] = "true"
     
-    # Get base directory
-    base_dir = Path(__file__).resolve().parent
+    # Get base directory (parent of src directory)
+    base_dir = Path(__file__).resolve().parent.parent
     
     # Load configuration
     config = Config(environment)
     oauth_config = config.get_oauth_config()
     api_config = config.get_api_config()
 
-    # Get host based on environment
-    host = api_config.get('paper_trading_host' if environment == 'paper_trading' else 'live_trading_host')
+    # Get host for live trading
+    host = api_config.get('live_trading_host')
 
     # Ensure absolute paths for key files
     oauth_dir = f"{environment}_oauth_files"

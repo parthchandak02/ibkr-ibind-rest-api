@@ -14,8 +14,8 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Path to API keys file
-API_KEYS_FILE = Path(__file__).resolve().parent / 'api_keys.json'
+# Path to API keys file in project root (parent of src directory)
+API_KEYS_FILE = Path(__file__).resolve().parent.parent / 'api_keys.json'
 
 def generate_api_key(name):
     """Generate a new API key and save it to the keys file."""
