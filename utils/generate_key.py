@@ -3,10 +3,15 @@
 Script to generate an API key for the IBKR REST API.
 This script should be run locally to create your first API key.
 """
+import sys
 import json
 import argparse
 from pathlib import Path
-from auth import generate_api_key
+
+# Add the parent directory to the path so we can import from src
+sys.path.append(str(Path(__file__).parent.parent))
+
+from src.auth import generate_api_key
 
 def main():
     parser = argparse.ArgumentParser(description="Generate an API key for the IBKR REST API")
@@ -27,4 +32,4 @@ def main():
     return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

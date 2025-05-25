@@ -1,0 +1,20 @@
+{
+  "services": [
+    {
+      "type": "web",
+      "name": "ibkr-api",
+      "env": "docker",
+      "dockerfilePath": "./Dockerfile",
+      "envVars": [
+        {
+          "key": "IBIND_TRADING_ENV",
+          "value": "live_trading"
+        },
+        {
+          "key": "PORT",
+          "value": "8080"
+        }
+      ]
+    }
+  ]
+}
