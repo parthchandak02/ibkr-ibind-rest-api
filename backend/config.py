@@ -3,8 +3,8 @@ Config module for the ibind REST API.
 
 This module handles loading configuration from JSON files and environment variables.
 """
+
 import json
-import os
 from pathlib import Path
 
 
@@ -22,7 +22,7 @@ class Config:
 
     def _load_config(self):
         """Load the configuration from the JSON file."""
-        with open(self.config_path, 'r') as f:
+        with open(self.config_path, "r") as f:
             return json.load(f)
 
     def get_oauth_config(self):
@@ -31,11 +31,11 @@ class Config:
         # Base directory is the project root (parent of src directory)
         base_dir = Path(__file__).resolve().parent.parent
         oauth_dir = "live_trading_oauth_files"
-        
+
         # Set default paths for OAuth files
         oauth_config["encryption_key_path"] = str(base_dir / oauth_dir / "private_encryption.pem")
         oauth_config["signature_key_path"] = str(base_dir / oauth_dir / "private_signature.pem")
-        
+
         return oauth_config
 
     def get_api_config(self):
@@ -56,5 +56,5 @@ class Config:
             "environment": "live_trading",
             "oauth": self.get_oauth_config(),
             "api": self.get_api_config(),
-            "application": self.get_application_config()
+            "application": self.get_application_config(),
         }

@@ -12,4 +12,4 @@ This package contains the core application modules:
 from .application import Application
 
 __version__ = "1.0.0"
-__all__ = ['Application'] 
+__all__ = ["Application"]
