@@ -1,8 +1,19 @@
-flask==3.0.2
+# Core Backend API
+flask==3.0.3
 flask-cors==4.0.0
-ibind==0.1.13
-python-dotenv==1.0.1
-requests==2.31.0
 flask-limiter==3.5.0
-pydantic==2.5.2
-pycryptodome==3.20.0
+ibind==0.5.19
+requests==2.31.0
+pydantic==2.7.1
+pycryptodome==3.19.1
+
+# Frontend Dashboard  
+streamlit==1.35.0
+pandas==2.2.2
+plotly==5.22.0
+
+# Development Tools (optional)
+black==24.3.0
+isort==5.12.0
+mypy==1.9.0
+pytest==8.1.1
