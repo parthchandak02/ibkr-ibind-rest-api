@@ -1,0 +1,231 @@
+name: Trading Trigger - AAPL Test Order
+
+# This workflow can be triggered from GitHub Pages via repository_dispatch
+on:
+  repository_dispatch:
+    types: [trade_trigger]
+  workflow_dispatch:  # Also allow manual triggering from GitHub UI
+    inputs:
+      symbol:
+        description: 'Stock symbol to trade'
+        required: true
+        default: 'AAPL'
+      action:
+        description: 'Buy or Sell'
+        required: true
+        default: 'BUY'
+        type: choice
+        options:
+        - BUY
+        - SELL
+      quantity:
+        description: 'Number of shares'
+        required: true
+        default: '1'
+      limit_price:
+        description: 'Limit price'
+        required: true
+        default: '20.00'
+
+jobs:
+  place_trade:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Extract trade parameters
+      id: trade_params
+      run: |
+        # Use inputs from workflow_dispatch or repository_dispatch payload
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "symbol=${{ github.event.inputs.symbol }}" >> $GITHUB_OUTPUT
+          echo "action=${{ github.event.inputs.action }}" >> $GITHUB_OUTPUT
+          echo "quantity=${{ github.event.inputs.quantity }}" >> $GITHUB_OUTPUT
+          echo "limit_price=${{ github.event.inputs.limit_price }}" >> $GITHUB_OUTPUT
+        else
+          # repository_dispatch from GitHub Pages
+          echo "symbol=${{ github.event.client_payload.symbol || 'AAPL' }}" >> $GITHUB_OUTPUT
+          echo "action=${{ github.event.client_payload.action || 'BUY' }}" >> $GITHUB_OUTPUT
+          echo "quantity=${{ github.event.client_payload.quantity || '1' }}" >> $GITHUB_OUTPUT
+          echo "limit_price=${{ github.event.client_payload.limit_price || '20.00' }}" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Display trade details
+      run: |
+        echo "🚀 Trading Trigger Activated!"
+        echo "Symbol: ${{ steps.trade_params.outputs.symbol }}"
+        echo "Action: ${{ steps.trade_params.outputs.action }}"
+        echo "Quantity: ${{ steps.trade_params.outputs.quantity }}"
+        echo "Limit Price: ${{ steps.trade_params.outputs.limit_price }}"
+        echo "Triggered by: ${{ github.event_name }}"
+        echo "Timestamp: $(date)"
+        
+    - name: Setup secure configuration
+      run: |
+        echo "🔐 Setting up secure configuration from GitHub Secrets..."
+        
+        # Create OAuth files directory
+        mkdir -p live_trading_oauth_files
+        
+        # Create OAuth files from GitHub Secrets (base64 encoded)
+        echo "${{ secrets.ENCRYPTION_KEY_B64 }}" | base64 -d > live_trading_oauth_files/private_encryption.pem
+        echo "${{ secrets.SIGNATURE_KEY_B64 }}" | base64 -d > live_trading_oauth_files/private_signature.pem
+        
+        # Set proper permissions
+        chmod 600 live_trading_oauth_files/*.pem
+        
+        # Create config.json from GitHub Secret
+        echo "${{ secrets.IBKR_OAUTH_CONFIG }}" > config.json
+        
+        # Create API keys file for authentication
+        echo '{"${{ secrets.API_KEY }}": {"name": "github_actions", "created": "'$(date)'"}}' > api_keys.json
+        
+        echo "✅ Secure configuration setup complete"
+        
+    - name: Start Flask API Server
+      run: |
+        echo "🔧 Starting Flask API server..."
+        python run_server.py --port 3000 &
+        FLASK_PID=$!
+        echo "Flask server started with PID: $FLASK_PID"
+        echo "FLASK_PID=$FLASK_PID" >> $GITHUB_ENV
+        
+        # Wait for server to start
+        echo "⏳ Waiting for Flask server to be ready..."
+        for i in {1..30}; do
+          if curl -f http://localhost:3000/health > /dev/null 2>&1; then
+            echo "✅ Flask server is ready!"
+            break
+          fi
+          echo "Attempt $i/30: Flask server not ready yet..."
+          sleep 2
+        done
+        
+    - name: Place test order
+      run: |
+        echo "📈 Placing test order..."
+        
+        # First, resolve symbol to contract ID
+        echo "🔍 Resolving symbol to contract ID..."
+        SYMBOL_RESPONSE=$(curl -s -w "HTTPSTATUS:%{http_code}" \
+          -X GET \
+          -H "X-API-Key: ${{ secrets.API_KEY }}" \
+          "http://localhost:3000/resolve/${{ steps.trade_params.outputs.symbol }}")
+        
+        SYMBOL_HTTP_STATUS=$(echo $SYMBOL_RESPONSE | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+        SYMBOL_BODY=$(echo $SYMBOL_RESPONSE | sed -e 's/HTTPSTATUS\:.*//g')
+        
+        if [ $SYMBOL_HTTP_STATUS -ne 200 ]; then
+          echo "❌ Failed to resolve symbol: $SYMBOL_BODY"
+          exit 1
+        fi
+        
+        # Extract conid from response
+        CONID=$(echo $SYMBOL_BODY | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    print(data.get('conid', ''))
+except:
+    print('')
+")
+        
+        if [ -z "$CONID" ]; then
+          echo "❌ Could not extract contract ID from response"
+          exit 1
+        fi
+        
+        echo "✅ Resolved ${{ steps.trade_params.outputs.symbol }} to contract ID: $CONID"
+        
+        # Prepare the secure order data
+        ORDER_DATA='{
+          "conid": "'$CONID'",
+          "side": "${{ steps.trade_params.outputs.action }}",
+          "quantity": ${{ steps.trade_params.outputs.quantity }},
+          "order_type": "LMT",
+          "price": ${{ steps.trade_params.outputs.limit_price }},
+          "tif": "DAY"
+        }'
+        
+        echo "Order data: $ORDER_DATA"
+        
+        # Place the order via secure API endpoint
+        RESPONSE=$(curl -s -w "HTTPSTATUS:%{http_code}" \
+          -X POST \
+          -H "Content-Type: application/json" \
+          -H "X-API-Key: ${{ secrets.API_KEY }}" \
+          -d "$ORDER_DATA" \
+          http://localhost:3000/order)
+        
+        # Extract HTTP status and body
+        HTTP_STATUS=$(echo $RESPONSE | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+        HTTP_BODY=$(echo $RESPONSE | sed -e 's/HTTPSTATUS\:.*//g')
+        
+        echo "HTTP Status: $HTTP_STATUS"
+        echo "Response Body: $HTTP_BODY"
+        
+        # Check if request was successful
+        if [ $HTTP_STATUS -eq 200 ]; then
+          echo "✅ Order placed successfully!"
+          echo "Response: $HTTP_BODY"
+          
+          # Parse and display key information
+          echo "🎯 Trade Summary:"
+          echo "$HTTP_BODY" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    print(f\"Status: {data.get('status', 'unknown')}\")
+    print(f\"Environment: {data.get('environment', 'unknown')}\")
+    print(f\"Order Tag: {data.get('order_tag', 'N/A')}\")
+    if 'data' in data and data['data']:
+        order_data = data['data']
+        if isinstance(order_data, list) and len(order_data) > 0:
+            order_info = order_data[0]
+            print(f\"Order ID: {order_info.get('order_id', 'N/A')}\")
+            print(f\"Order Status: {order_info.get('order_status', 'N/A')}\")
+except Exception as e:
+    print(f'Could not parse response as JSON: {e}')
+"
+        else
+          echo "❌ Order failed with HTTP status: $HTTP_STATUS"
+          echo "Error response: $HTTP_BODY"
+          exit 1
+        fi
+        
+    - name: Check server logs (if needed)
+      if: failure()
+      run: |
+        echo "🔍 Checking for any server logs..."
+        # Kill Flask server gracefully
+        if [ ! -z "$FLASK_PID" ]; then
+          kill $FLASK_PID || true
+        fi
+        
+    - name: Cleanup
+      if: always()
+      run: |
+        echo "🧹 Cleaning up..."
+        # Kill Flask server
+        if [ ! -z "$FLASK_PID" ]; then
+          kill $FLASK_PID || true
+          echo "Flask server stopped"
+        fi
+        
+        # Display final status
+        echo "🏁 Workflow completed!"
+        echo "Triggered at: $(date)"
+        echo "Repository: ${{ github.repository }}"
+        echo "Event: ${{ github.event_name }}" 

@@ -48,3 +48,29 @@ examples/
 docs/
 utils/
 *git.sh
+
+# Frontend build artifacts (in root only - not subdirectories)
+/node_modules/
+/package-lock.json
+/package.json
+/dist/
+/.astro/
+
+# Frontend development files that might accidentally be created in root
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Temporary or auto-generated files
+*.tmp
+*.temp
+coverage/
+.nyc_output/
+
+# Testing
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml

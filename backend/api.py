@@ -84,6 +84,43 @@ except Exception as e:
     logger.error(f"Failed to initialize IBKR client during startup: {e}")
 
 
+# ========================
+# SYMBOL RESOLUTION ENDPOINT  
+# ========================
+
+@app.route("/resolve/<symbol>", methods=["GET"])
+@limiter.limit("30 per minute")
+@require_api_key
+def resolve_symbol(symbol):
+    """Resolve a stock symbol to contract ID."""
+    client = get_ibkr_client()
+    if not client:
+        return jsonify({
+            "status": "error", 
+            "message": "IBKR client not available."
+        }), 500
+
+    try:
+        conid = resolve_symbol_to_conid(client, symbol.upper())
+        return jsonify({
+            "status": "success",
+            "symbol": symbol.upper(),
+            "conid": conid
+        })
+    except SymbolResolutionError as e:
+        logger.error(f"Symbol resolution failed for {symbol}: {e}")
+        return jsonify({
+            "status": "error", 
+            "message": f"Could not resolve symbol {symbol}: {str(e)}"
+        }), 400
+    except Exception as e:
+        logger.error(f"Unexpected error resolving {symbol}: {e}")
+        return jsonify({
+            "status": "error", 
+            "message": f"Unexpected error: {str(e)}"
+        }), 500
+
+
 # =====================
 # AUTHENTICATION ROUTES
 # =====================
@@ -563,6 +600,126 @@ def get_positions():
         return jsonify({
             "status": "error", 
             "message": str(e)
+        }), 500
+
+
+# =======================
+# SIMPLE ORDER ENDPOINT
+# =======================
+
+@app.route("/api/place_order", methods=["POST"])
+@limiter.limit("20 per minute")
+@require_api_key
+def place_simple_order():
+    """Place a simple order using symbol (requires API key authentication)."""
+    client = get_ibkr_client()
+    if not client:
+        return jsonify({
+            "status": "error", 
+            "message": "IBKR client not available."
+        }), 500
+
+    # Ensure account ID is set
+    if not client.account_id:
+        accounts = client.portfolio_accounts().data
+        if accounts and len(accounts) > 0:
+            client.account_id = accounts[0]["accountId"]
+        else:
+            return jsonify({
+                "status": "error", 
+                "message": "No account ID available"
+            }), 400
+
+    data = request.json
+
+    # Validate required fields
+    required_fields = ["symbol", "action", "quantity", "order_type"]
+    missing_fields = [field for field in required_fields if field not in data]
+    if missing_fields:
+        return jsonify({
+            "status": "error",
+            "message": f"Missing required fields: {', '.join(missing_fields)}"
+        }), 400
+
+    symbol = data["symbol"].upper()
+    action = data["action"].upper()
+    quantity = int(data["quantity"])
+    order_type = data["order_type"].upper()
+
+    # Validate values
+    if action not in ["BUY", "SELL"]:
+        return jsonify({
+            "status": "error", 
+            "message": "Invalid action. Must be 'BUY' or 'SELL'"
+        }), 400
+
+    if order_type not in ["LMT", "MKT"]:
+        return jsonify({
+            "status": "error",
+            "message": "Invalid order type. Must be 'LMT' or 'MKT'"
+        }), 400
+
+    try:
+        # Resolve symbol to contract ID
+        logger.info(f"Resolving symbol {symbol} to contract ID")
+        conid = resolve_symbol_to_conid(client, symbol)
+        logger.info(f"Resolved {symbol} to conid: {conid}")
+
+        # Create order request
+        order_tag = f'simple-{symbol}-{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
+
+        order_request = OrderRequest(
+            conid=int(conid),
+            side=action,
+            quantity=quantity,
+            order_type=order_type,
+            acct_id=client.account_id,
+            coid=order_tag,
+            tif="DAY",
+        )
+
+        # Set limit price if provided
+        if order_type == "LMT" and "limit_price" in data:
+            order_request.price = round(float(data["limit_price"]), 2)
+            logger.info(f"Setting limit price to ${order_request.price}")
+
+        # Define standard answers
+        answers = {
+            QuestionType.PRICE_PERCENTAGE_CONSTRAINT: True,
+            QuestionType.ORDER_VALUE_LIMIT: True,
+            QuestionType.STOP_ORDER_RISKS: True,
+            "Unforeseen new question": True,
+            "<h4>Confirm Mandatory Cap Price</h4>To avoid trading at a price that is not consistent with a fair and orderly market, IB may set a cap (for a buy order) or floor (for a sell order). THIS MAY CAUSE AN ORDER THAT WOULD OTHERWISE BE MARKETABLE NOT TO BE TRADED.": True,
+            "Market Order Confirmation": True,
+            "You are submitting an order without market data. We strongly recommend against this as it may result in erroneous and unexpected trades.Are you sure you want to submit this order?": True,
+        }
+
+        logger.info(f"Placing order for {quantity} shares of {symbol} ({action}) at ${order_request.price if hasattr(order_request, 'price') else 'market'}")
+        response = client.place_order(order_request, answers).data
+        
+        return jsonify({
+            "status": "success", 
+            "message": f"Order placed successfully for {quantity} shares of {symbol}",
+            "order_id": response.get("order_id") if response else None,
+            "order_tag": order_tag,
+            "symbol": symbol,
+            "action": action,
+            "quantity": quantity,
+            "order_type": order_type,
+            "data": response
+        })
+        
+    except SymbolResolutionError as e:
+        logger.error(f"Symbol resolution failed for {symbol}: {e}")
+        return jsonify({
+            "status": "error", 
+            "message": f"Could not resolve symbol {symbol}: {str(e)}"
+        }), 400
+    except Exception as e:
+        logger.error(f"Order placement failed for {symbol}: {e}")
+        return jsonify({
+            "status": "error", 
+            "message": f"Order placement failed: {str(e)}"
         }), 500
 
 
