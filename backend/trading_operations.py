@@ -12,7 +12,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from ibind import IbkrClient, make_order_request
-from ibind.enums import QuestionType
+from ibind import QuestionType
 
 logger = logging.getLogger(__name__)
 
