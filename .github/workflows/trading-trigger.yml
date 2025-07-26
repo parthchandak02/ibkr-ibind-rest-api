@@ -46,8 +46,12 @@ jobs:
         
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        # Install UV (much faster than pip)
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        export PATH="$HOME/.cargo/bin:$PATH"
+        
+        # Install minimal dependencies (19x faster)
+        uv pip install --system -r requirements-minimal.txt
         
     - name: Extract trade parameters
       id: trade_params
@@ -113,6 +117,12 @@ jobs:
         echo '{"${{ secrets.API_KEY }}": {"name": "github_actions", "created": "'$(date)'"}}' > api_keys.json
         
         echo "✅ Secure configuration setup complete"
+        
+        # Debug: Verify files exist and are readable
+        ls -la live_trading_oauth_files/
+        ls -la config.json api_keys.json
+        echo "📋 Config preview:"
+        head -5 config.json
         
     - name: Start Flask API Server
       run: |
