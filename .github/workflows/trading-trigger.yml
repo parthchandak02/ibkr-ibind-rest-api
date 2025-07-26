@@ -180,22 +180,7 @@ jobs:
           
           # Parse and display key information
           echo "🎯 Trade Summary:"
-          echo "$HTTP_BODY" | python3 -c "
-import sys, json
-try:
-    data = json.load(sys.stdin)
-    print(f\"Status: {data.get('status', 'unknown')}\")
-    print(f\"Environment: {data.get('environment', 'unknown')}\")
-    print(f\"Order Tag: {data.get('order_tag', 'N/A')}\")
-    if 'data' in data and data['data']:
-        order_data = data['data']
-        if isinstance(order_data, list) and len(order_data) > 0:
-            order_info = order_data[0]
-            print(f\"Order ID: {order_info.get('order_id', 'N/A')}\")
-            print(f\"Order Status: {order_info.get('order_status', 'N/A')}\")
-except Exception as e:
-    print(f'Could not parse response as JSON: {e}')
-"
+          echo "📊 Response Body: $HTTP_BODY"
         else
           echo "❌ Order failed with HTTP status: $HTTP_STATUS"
           echo "Error response: $HTTP_BODY"
