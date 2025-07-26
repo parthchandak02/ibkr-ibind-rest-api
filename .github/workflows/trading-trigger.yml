@@ -83,15 +83,31 @@ jobs:
         # Create OAuth files directory
         mkdir -p live_trading_oauth_files
         
-        # Create OAuth files from GitHub Secrets (base64 encoded)
-        echo "${{ secrets.ENCRYPTION_KEY_B64 }}" | base64 -d > live_trading_oauth_files/private_encryption.pem
-        echo "${{ secrets.SIGNATURE_KEY_B64 }}" | base64 -d > live_trading_oauth_files/private_signature.pem
+        # Create OAuth files from GitHub Secrets (base64 encoded) - with error handling
+        if [ -n "${{ secrets.ENCRYPTION_KEY_B64 }}" ]; then
+          echo "${{ secrets.ENCRYPTION_KEY_B64 }}" | base64 -d > live_trading_oauth_files/private_encryption.pem || echo "❌ Failed to decode ENCRYPTION_KEY_B64"
+        else
+          echo "⚠️ ENCRYPTION_KEY_B64 secret not set"
+        fi
         
-        # Set proper permissions
-        chmod 600 live_trading_oauth_files/*.pem
+        if [ -n "${{ secrets.SIGNATURE_KEY_B64 }}" ]; then
+          echo "${{ secrets.SIGNATURE_KEY_B64 }}" | base64 -d > live_trading_oauth_files/private_signature.pem || echo "❌ Failed to decode SIGNATURE_KEY_B64"
+        else
+          echo "⚠️ SIGNATURE_KEY_B64 secret not set"
+        fi
+        
+        # Set proper permissions if files exist
+        if ls live_trading_oauth_files/*.pem 1> /dev/null 2>&1; then
+          chmod 600 live_trading_oauth_files/*.pem
+        fi
         
         # Create config.json from GitHub Secret
-        echo "${{ secrets.IBKR_OAUTH_CONFIG }}" > config.json
+        if [ -n "${{ secrets.IBKR_OAUTH_CONFIG }}" ]; then
+          echo "${{ secrets.IBKR_OAUTH_CONFIG }}" > config.json
+        else
+          echo "⚠️ IBKR_OAUTH_CONFIG secret not set"
+          echo '{}' > config.json
+        fi
         
         # Create API keys file for authentication
         echo '{"${{ secrets.API_KEY }}": {"name": "github_actions", "created": "'$(date)'"}}' > api_keys.json
