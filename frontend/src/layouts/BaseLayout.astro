@@ -5,6 +5,9 @@ export interface Props {
 }
 
 const { title, description = "Secure Trading Interface with GitHub Actions" } = Astro.props;
+
+// Import CSS directly in Astro component
+import '../styles/design-system.css';
 ---
 
 <!DOCTYPE html>
@@ -16,7 +19,6 @@ const { title, description = "Secure Trading Interface with GitHub Actions" } = 
     <meta name="description" content={description} />
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
-    <link rel="stylesheet" href="../styles/design-system.css" />
   </head>
   <body>
     <!-- Dark Mode Toggle -->

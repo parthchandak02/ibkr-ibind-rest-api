@@ -4,32 +4,41 @@ import { defineConfig } from 'astro/config';
 // https://astro.build/config
 export default defineConfig({
   // Set the site URL for GitHub Pages
-  site: 'https://pchandak.github.io',
-  base: '/ibind_rest_api',
+  site: 'https://parthchandak02.github.io',
+  
+  // Only set base path in production for GitHub Pages
+  // In development, we want clean URLs without the base path
+  base: process.env.NODE_ENV === 'production' ? '/ibkr-ibind-rest-api' : undefined,
   
   // Build configuration for static deployment
   output: 'static',
   
-  // Ensure proper asset handling for GitHub Pages
+  // 2025 Best Practice: Always use trailing slashes for better consistency
+  trailingSlash: 'always',
+  
+  // Ensure proper asset handling
   build: {
+    format: 'directory',
     assets: 'assets'
   },
   
-  // 2025 Feature: Trailing slash handling
-  trailingSlash: 'never',
-  
   // Development server configuration
+  server: {
+    port: 4321,
+    open: true
+  },
+  
+  // Fix the Vite proxy to point to the correct backend port
   vite: {
     server: {
       proxy: {
-        '/api': 'http://localhost:3000',
+        '/api': 'http://localhost:8080',
       },
     },
   },
   
-  // Enable experimental features for 2025
+  // Enable modern features for 2025
   experimental: {
-    // Future: Add when needed
-    // serializeConfig: true
+    // Future features can be added here
   }
 });

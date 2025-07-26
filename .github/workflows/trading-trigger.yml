@@ -27,6 +27,10 @@ on:
         required: true
         default: '20.00'
 
+# Global environment variables - define once, use everywhere
+env:
+  API_PORT: 8080
+
 jobs:
   place_trade:
     runs-on: ubuntu-latest
@@ -97,7 +101,7 @@ jobs:
     - name: Start Flask API Server
       run: |
         echo "🔧 Starting Flask API server..."
-        python run_server.py --port 3000 &
+        python run_server.py --port ${{ env.API_PORT }} &
         FLASK_PID=$!
         echo "Flask server started with PID: $FLASK_PID"
         echo "FLASK_PID=$FLASK_PID" >> $GITHUB_ENV
@@ -105,7 +109,7 @@ jobs:
         # Wait for server to start
         echo "⏳ Waiting for Flask server to be ready..."
         for i in {1..30}; do
-          if curl -f http://localhost:3000/health > /dev/null 2>&1; then
+          if curl -f -H "X-API-Key: ${{ secrets.API_KEY }}" http://localhost:${{ env.API_PORT }}/health > /dev/null 2>&1; then
             echo "✅ Flask server is ready!"
             break
           fi
@@ -122,7 +126,7 @@ jobs:
         SYMBOL_RESPONSE=$(curl -s -w "HTTPSTATUS:%{http_code}" \
           -X GET \
           -H "X-API-Key: ${{ secrets.API_KEY }}" \
-          "http://localhost:3000/resolve/${{ steps.trade_params.outputs.symbol }}")
+          "http://localhost:${{ env.API_PORT }}/resolve/${{ steps.trade_params.outputs.symbol }}")
         
         SYMBOL_HTTP_STATUS=$(echo $SYMBOL_RESPONSE | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
         SYMBOL_BODY=$(echo $SYMBOL_RESPONSE | sed -e 's/HTTPSTATUS\:.*//g')
@@ -167,7 +171,7 @@ except:
           -H "Content-Type: application/json" \
           -H "X-API-Key: ${{ secrets.API_KEY }}" \
           -d "$ORDER_DATA" \
-          http://localhost:3000/order)
+          http://localhost:${{ env.API_PORT }}/order)
         
         # Extract HTTP status and body
         HTTP_STATUS=$(echo $RESPONSE | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
