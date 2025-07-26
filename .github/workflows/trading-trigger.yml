@@ -137,14 +137,7 @@ jobs:
         fi
         
         # Extract conid from response
-        CONID=$(echo $SYMBOL_BODY | python3 -c "
-import sys, json
-try:
-    data = json.load(sys.stdin)
-    print(data.get('conid', ''))
-except:
-    print('')
-")
+        CONID=$(echo $SYMBOL_BODY | python3 -c "import sys,json; data=json.loads(sys.stdin.read()); print(data.get('conid',''))")
         
         if [ -z "$CONID" ]; then
           echo "❌ Could not extract contract ID from response"
