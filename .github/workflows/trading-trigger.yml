@@ -113,8 +113,6 @@ jobs:
           echo "⚠️ IBKR_OAUTH_CONFIG secret not set"
           echo '{}' > config.json
         fi
-      env:
-        IBKR_CONFIG: ${{ secrets.IBKR_OAUTH_CONFIG }}
         
         # Create API keys file for authentication
         echo '{"${{ secrets.API_KEY }}": {"name": "github_actions", "created": "'$(date)'"}}' > api_keys.json
@@ -126,6 +124,8 @@ jobs:
         ls -la config.json api_keys.json
         echo "📋 Config preview:"
         head -5 config.json
+      env:
+        IBKR_CONFIG: ${{ secrets.IBKR_OAUTH_CONFIG }}
         
     - name: Start Flask API Server
       run: |
