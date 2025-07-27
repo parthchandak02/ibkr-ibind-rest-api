@@ -106,12 +106,14 @@ jobs:
         fi
         
         # Create config.json from GitHub Secret
-        if [ -n "${{ secrets.IBKR_OAUTH_CONFIG }}" ]; then
-          echo "${{ secrets.IBKR_OAUTH_CONFIG }}" > config.json
+        if [ ! -z "$IBKR_CONFIG" ]; then
+          echo "$IBKR_CONFIG" > config.json
         else
           echo "⚠️ IBKR_OAUTH_CONFIG secret not set"
           echo '{}' > config.json
         fi
+      env:
+        IBKR_CONFIG: ${{ secrets.IBKR_OAUTH_CONFIG }}
         
         # Create API keys file for authentication
         echo '{"${{ secrets.API_KEY }}": {"name": "github_actions", "created": "'$(date)'"}}' > api_keys.json
