@@ -1,6 +1,7 @@
 name: Trading Trigger - AAPL Test Order
 
 # This workflow can be triggered from GitHub Pages via repository_dispatch or manually
+# Updated: Force GitHub to refresh workflow triggers
 on:
   repository_dispatch:
     types: [trade_trigger]
