@@ -3,9 +3,7 @@ name: Trading Trigger - AAPL Test Order
 # This workflow can be triggered from GitHub Pages via repository_dispatch or manually
 # Updated: Force GitHub to refresh workflow triggers
 on:
-  repository_dispatch:
-    types: [trade_trigger]
-  workflow_dispatch:  # Also allow manual triggering from GitHub UI
+  workflow_dispatch:  # Manual triggering from GitHub UI
     inputs:
       symbol:
         description: 'Stock symbol to trade'
@@ -24,9 +22,11 @@ on:
         required: true
         default: '1'
       limit_price:
-        description: 'Limit price'
+        description: 'Limit price for the order'
         required: true
         default: '20.00'
+  repository_dispatch:
+    types: [trade_trigger]
 
 # Global environment variables - define once, use everywhere
 env:
