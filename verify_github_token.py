@@ -2,6 +2,8 @@
 """
 Simple script to verify your GitHub token is working correctly
 Run this before testing the workflow trigger
+
+Usage: uv run python verify_github_token.py
 """
 
 import requests

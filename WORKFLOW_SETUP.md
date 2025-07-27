@@ -41,14 +41,13 @@ export GITHUB_REPO_NAME="ibkr-ibind-rest-api"
 
 ```bash
 # 1. Start your Flask server
-python3 run_server.py --port 8080
+uv run python run_server.py --port 8080
 
-# 2. Update the test script with your API key
-nano test_workflow_trigger.py
-# Replace YOUR_API_KEY_HERE with an actual API key
+# 2. Update the test script with your API key (if needed)
+# The script uses a default test API key
 
 # 3. Run the test
-python3 test_workflow_trigger.py
+uv run python test_workflow_trigger.py
 ```
 
 **Expected Success Response:**

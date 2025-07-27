@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
 Test script for GitHub workflow trigger endpoint
+
+Run with: uv run python test_workflow_trigger.py
 """
 
 import requests
@@ -8,7 +10,7 @@ import json
 
 # Test configuration
 API_BASE_URL = "http://localhost:8080"  # Adjust port as needed
-API_KEY = "test-api-key-123"  # Default API key for testing
+API_KEY = "YOUR_API_KEY_HERE"  # Valid API key for testing
 
 def test_workflow_trigger():
     """Test the /trigger-workflow endpoint"""
