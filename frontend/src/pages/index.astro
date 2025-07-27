@@ -74,23 +74,23 @@ import StatusSection from '../components/StatusSection.astro';
 
 <style>
   .trading-container {
-    width: 100%;
+				width: 100%;
     max-width: 800px;
     margin: 0 auto;
     padding: var(--spacing-lg);
     display: flex;
     flex-direction: column;
     gap: var(--spacing-xl);
-  }
-  
+			}
+			
   .trading-info-card {
     background: hsl(var(--card));
     border: 1px solid hsl(var(--border));
     border-radius: var(--radius);
     box-shadow: var(--shadow-sm);
     overflow: hidden;
-  }
-  
+			}
+			
   .info-header {
     display: flex;
     align-items: center;
@@ -98,8 +98,8 @@ import StatusSection from '../components/StatusSection.astro';
     padding: var(--spacing-lg);
     border-bottom: 1px solid hsl(var(--border));
     background: hsl(var(--muted) / 0.3);
-  }
-  
+			}
+			
   .info-icon {
     display: flex;
     align-items: center;
@@ -109,8 +109,8 @@ import StatusSection from '../components/StatusSection.astro';
     background: hsl(var(--accent));
     color: hsl(var(--accent-foreground));
     border-radius: var(--radius);
-  }
-  
+			}
+			
   .info-title {
     font-family: var(--font-heading);
     font-size: var(--text-lg);
@@ -118,21 +118,21 @@ import StatusSection from '../components/StatusSection.astro';
     color: hsl(var(--foreground));
     margin: 0;
     letter-spacing: -0.025em;
-  }
-  
+			}
+			
   .trade-params {
     padding: var(--spacing-lg);
     display: flex;
     flex-direction: column;
     gap: var(--spacing-lg);
-  }
-  
+			}
+			
   .param-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: var(--spacing-lg);
-  }
-  
+			}
+			
   .param-item {
     display: flex;
     flex-direction: column;
@@ -145,31 +145,31 @@ import StatusSection from '../components/StatusSection.astro';
   
   .param-label {
     font-size: var(--text-xs);
-    font-weight: 600;
+				font-weight: 600;
     color: hsl(var(--muted-foreground));
-    text-transform: uppercase;
+				text-transform: uppercase;
     letter-spacing: 0.05em;
-  }
-  
+			}
+			
   .param-value {
     font-size: var(--text-sm);
     font-weight: 600;
     font-family: var(--font-mono);
     color: hsl(var(--foreground));
-  }
-  
+			}
+			
   .param-value.symbol {
     color: hsl(var(--primary));
-  }
-  
+			}
+			
   .param-value.action {
     color: hsl(var(--chart-green));
   }
   
   .param-value.price {
     color: hsl(var(--warning));
-  }
-  
+			}
+			
   .trade-note {
     display: flex;
     align-items: flex-start;
@@ -179,8 +179,8 @@ import StatusSection from '../components/StatusSection.astro';
     border: 1px solid hsl(var(--border));
     border-radius: var(--radius);
     border-left: 4px solid hsl(var(--warning));
-  }
-  
+			}
+			
   .note-icon {
     display: flex;
     align-items: center;
@@ -196,23 +196,23 @@ import StatusSection from '../components/StatusSection.astro';
     color: hsl(var(--muted-foreground));
     margin: 0;
     line-height: 1.4;
-  }
-  
+			}
+			
   @media (max-width: 768px) {
     .trading-container {
       padding: var(--spacing-md);
       gap: var(--spacing-lg);
-    }
-    
+			}
+			
     .param-grid {
       grid-template-columns: 1fr;
       gap: var(--spacing-md);
-    }
-    
+			}
+			
     .info-header {
       padding: var(--spacing-md);
-    }
-    
+			}
+			
     .trade-params {
       padding: var(--spacing-md);
     }
@@ -231,5 +231,5 @@ import StatusSection from '../components/StatusSection.astro';
     .param-grid {
       grid-template-columns: 1fr;
     }
-  }
-</style>
+			}
+		</style>
