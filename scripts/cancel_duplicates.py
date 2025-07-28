@@ -20,7 +20,7 @@ from rich import box
 
 # Configuration
 API_URL = "http://localhost:8080"
-API_KEY = "YOUR_API_KEY_PLACEHOLDER"
+API_KEY = "YOUR_API_KEY_HERE"  # Replace with your actual API key
 
 console = Console()
 

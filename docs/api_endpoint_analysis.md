@@ -3,7 +3,7 @@
 Based on testing the running backend server on port 8080, here are all available endpoints and their response formats:
 
 ## Authentication
-- **Header Required**: `X-API-Key: YOUR_API_KEY_PLACEHOLDER`
+- **Header Required**: `X-API-Key: YOUR_API_KEY_HERE`
 
 ## Available Endpoints
 

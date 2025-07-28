@@ -72,7 +72,7 @@ uv run python generate_test_api_key.py
 
 **Output:**
 ```
-✅ Generated API key for testing: YOUR_API_KEY_PLACEHOLDER
+✅ Generated API key for testing: abc123-your-generated-key-here
 📝 Use this in your test scripts with header: X-API-Key: [key]
 ```
 
