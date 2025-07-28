@@ -74,3 +74,4 @@ htmlcov/
 .coverage
 .coverage.*
 coverage.xml
+site/
