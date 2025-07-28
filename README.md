@@ -353,6 +353,34 @@ uv run python backend/auth.py
 - 🔄 **100% Uptime**: Stable IBKR connection management
 - 📊 **Real-time**: Live portfolio data integration
 
+## 📖 Documentation
+
+Our complete documentation is organized following the [Diátaxis framework](https://diataxis.fr/):
+
+- **[📚 Documentation Hub](docs/index.md)** - Complete documentation portal
+- **[🎓 Tutorials](docs/tutorials/)** - Step-by-step learning guides  
+- **[🛠️ How-to Guides](docs/how-to/)** - Solutions for specific tasks
+- **[💡 Explanations](docs/explanations/)** - Understanding the system
+- **[📖 Reference](docs/reference/)** - Technical specifications
+
+### Quick Links
+- **[🚀 Getting Started](docs/tutorials/getting-started.md)** - Your first setup
+- **[🔌 API Reference](docs/reference/api-endpoints.md)** - REST API documentation
+- **[⌨️ CLI Commands](docs/reference/cli-commands.md)** - Command-line tools
+- **[🔒 Security Model](docs/explanations/security.md)** - Safety and authentication
+
+### Build Documentation Locally
+```bash
+# Install documentation dependencies
+uv sync --extra docs
+
+# Serve documentation locally
+uv run mkdocs serve
+
+# Build static documentation
+uv run mkdocs build
+```
+
 ## 🤝 Contributing
 
 1. Fork the repository

@@ -1,0 +1,90 @@
+site_name: IBKR Trading REST API
+site_description: Interactive Brokers trading server with GitHub Actions integration
+site_author: Parth Chandak  
+site_url: https://parthchandak02.github.io/ibkr-ibind-rest-api
+
+repo_name: parthchandak02/ibkr-ibind-rest-api
+repo_url: https://github.com/parthchandak02/ibkr-ibind-rest-api
+
+# Configuration
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - search.highlight
+    - search.share
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: blue
+      accent: orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue
+      accent: orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+# Extensions
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - tables
+  - attr_list
+  - md_in_html
+
+# Navigation following Diátaxis framework
+nav:
+  - Home: index.md
+  - Tutorials:
+    - tutorials/index.md
+    - Getting Started: tutorials/getting-started.md
+    - First Trade Execution: tutorials/first-trade.md
+  - How-to Guides:
+    - how-to/index.md
+    - GitHub Actions Setup: how-to/github-actions-setup.md
+    - IBKR Authentication: how-to/ibkr-auth-setup.md
+    - Flask CLI Usage: how-to/flask-cli-usage.md
+  - Explanations:
+    - explanations/index.md
+    - System Architecture: explanations/architecture.md
+    - Security Model: explanations/security.md
+    - Trading Workflows: explanations/trading-workflows.md
+  - Reference:
+    - reference/index.md
+    - API Endpoints: reference/api-endpoints.md
+    - CLI Commands: reference/cli-commands.md
+    - Configuration: reference/configuration.md
+    - UV Dependency Management: reference/uv-dependency-management.md
+
+# Plugins
+plugins:
+  - search
+  - git-revision-date-localized:
+      enable_creation_date: true
+      type: datetime
+
+# Extra
+extra:
+  version:
+    provider: mike
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/parthchandak02/ibkr-ibind-rest-api
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/ibind/ 

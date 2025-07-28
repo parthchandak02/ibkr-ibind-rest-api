@@ -50,7 +50,7 @@ def get_complete_account_data() -> Dict[str, Any]:
         account_data["ledger"] = {}
 
     # Fetch all positions using pagination
-    all_positions = _fetch_all_positions_with_pagination(client)
+    all_positions = fetch_all_positions_paginated()
     
     account_data["positions"] = all_positions
     account_data["portfolio_summary"] = {
@@ -61,16 +61,20 @@ def get_complete_account_data() -> Dict[str, Any]:
     return account_data
 
 
-def _fetch_all_positions_with_pagination(client) -> List[Dict[str, Any]]:
+def fetch_all_positions_paginated() -> List[Dict[str, Any]]:
     """
     Fetch all positions using pagination with detailed logging.
-    
-    Args:
-        client: IBKR client instance
         
     Returns:
         List of all positions
+        
+    Raises:
+        Exception: If IBKR client is not available
     """
+    client = get_ibkr_client()
+    if not client:
+        raise Exception("IBKR client not available")
+        
     all_positions = []
     page = 0
 

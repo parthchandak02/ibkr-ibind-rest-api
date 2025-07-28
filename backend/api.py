@@ -28,25 +28,23 @@ from .health_monitor import (
     start_health_monitor, 
     create_health_sse_response
 )
-from .market_data import get_market_data_for_conids, MarketDataError
+from .market_data import get_market_data_for_conids, get_current_price_for_symbol, MarketDataError
 from .data_export import generate_positions_csv, get_positions_with_limit
 from .account_operations import (
     get_complete_account_data, 
     get_live_orders, 
-    get_order_details
+    get_order_details,
+    fetch_all_positions_paginated
 )
 from .trading_operations import (
     resolve_symbol_to_conid,
-    get_current_market_price,
     calculate_limit_price,
-    fetch_all_positions,
     find_position_by_symbol,
     calculate_sell_quantity,
     calculate_buy_quantity,
     place_percentage_order,
     validate_percentage_order_request,
     SymbolResolutionError,
-    MarketDataError as TradingMarketDataError,
     PositionNotFoundError
 )
 
@@ -523,7 +521,7 @@ def percentage_limit_order(symbol):
         conid = resolve_symbol_to_conid(client, symbol)
         
         # Get current market price
-        current_price = get_current_market_price(client, conid, symbol)
+        current_price = get_current_price_for_symbol(symbol, conid)
         
         # Calculate limit price
         if side == "SELL":
@@ -535,7 +533,7 @@ def percentage_limit_order(symbol):
 
         # Calculate quantity based on side
         if side == "SELL":
-            all_positions = fetch_all_positions(client)
+            all_positions = fetch_all_positions_paginated()
             position = find_position_by_symbol(all_positions, symbol, conid)
             percentage_of_position = float(data.get("percentage_of_position", 0))
             quantity = calculate_sell_quantity(position, percentage_of_position, symbol)
@@ -554,7 +552,7 @@ def percentage_limit_order(symbol):
             "data": result,
         })
 
-    except (SymbolResolutionError, TradingMarketDataError, PositionNotFoundError) as e:
+    except (SymbolResolutionError, MarketDataError, PositionNotFoundError) as e:
         return jsonify({
             "status": "error", 
             "message": str(e)
@@ -868,6 +866,14 @@ def trigger_github_workflow():
             "message": "Internal server error"
         }), 500
 
+
+# ===================
+# CLI COMMANDS REGISTRATION
+# ===================
+
+# Register CLI commands with Flask
+from .cli import register_cli_commands
+register_cli_commands(app)
 
 # ===================
 # APP INITIALIZATION

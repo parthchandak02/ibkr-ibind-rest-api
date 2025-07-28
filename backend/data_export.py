@@ -15,50 +15,13 @@ from typing import List, Dict, Any
 from flask import Response
 
 from .utils import get_ibkr_client
+from .account_operations import fetch_all_positions_paginated
 
 logger = logging.getLogger(__name__)
 
 
-def fetch_all_positions_paginated() -> List[Dict[str, Any]]:
-    """
-    Fetch all positions using pagination.
-    
-    Returns:
-        List of position dictionaries
-    """
-    client = get_ibkr_client()
-    if not client:
-        raise Exception("IBKR client not available")
-    
-    all_positions = []
-    page = 0
-
-    logger.info("Starting position pagination for export")
-
-    while True:
-        try:
-            response = client.positions(page=page)
-            current_page_positions = response.data
-
-            if isinstance(current_page_positions, list) and current_page_positions:
-                logger.info(f"Page {page} has {len(current_page_positions)} positions")
-                all_positions.extend(current_page_positions)
-
-                # If fewer than 100 positions returned, we've reached the last page
-                if len(current_page_positions) < 100:
-                    break
-
-                page += 1
-                time.sleep(0.5)  # Delay between requests
-            else:
-                break
-                
-        except Exception as page_error:
-            logger.error(f"Error fetching positions page {page}: {page_error}")
-            break
-
-    logger.info(f"Retrieved {len(all_positions)} total positions")
-    return all_positions
+# Position fetching function moved to account_operations.py to avoid duplication
+# Now importing fetch_all_positions_paginated from account_operations module
 
 
 def format_position_for_csv(position: Dict[str, Any]) -> Dict[str, str]:

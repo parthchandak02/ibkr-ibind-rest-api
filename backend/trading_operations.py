@@ -14,17 +14,14 @@ from typing import Any, Dict, List, Optional
 from ibind import IbkrClient, make_order_request
 from ibind import QuestionType
 
+from .market_data import MarketDataError, get_current_price_for_symbol
+from .account_operations import fetch_all_positions_paginated
+
 logger = logging.getLogger(__name__)
 
 
 class SymbolResolutionError(Exception):
     """Raised when a symbol cannot be resolved to a contract ID."""
-
-    pass
-
-
-class MarketDataError(Exception):
-    """Raised when market data cannot be retrieved."""
 
     pass
 
@@ -113,43 +110,8 @@ def resolve_symbol_to_conid(client: IbkrClient, symbol: str) -> str:
         raise SymbolResolutionError(f"Error resolving symbol {symbol}: {str(e)}")
 
 
-def get_current_market_price(client: IbkrClient, conid: str, symbol: str) -> float:
-    """
-    Get the current market price for a contract.
-
-    Args:
-        client: Authenticated IBKR client
-        conid: Contract ID
-        symbol: Symbol for error messages
-
-    Returns:
-        float: Current market price
-
-    Raises:
-        MarketDataError: If market data cannot be retrieved
-    """
-    try:
-        market_data = client.marketdata_history_by_conid(
-            conid, period="1d", bar="1d", outside_rth=True
-        ).data
-
-        if not market_data or "data" not in market_data or not market_data["data"]:
-            raise MarketDataError(f"Could not get current market price for {symbol}")
-
-        # Use the latest data point for the current price
-        latest_data = market_data["data"][-1]
-        current_price = float(latest_data.get("c", 0))  # 'c' is close price
-
-        if current_price <= 0:
-            raise MarketDataError(f"Invalid current price for {symbol}: {current_price}")
-
-        logger.info(f"Retrieved current price for {symbol}: ${current_price}")
-        return current_price
-
-    except Exception as e:
-        if isinstance(e, MarketDataError):
-            raise
-        raise MarketDataError(f"Error getting market data for {symbol}: {str(e)}")
+# Market price function moved to market_data.py to avoid duplication
+# Use get_current_price_for_symbol() from market_data module instead
 
 
 def calculate_limit_price(current_price: float, side: str, percentage: float) -> float:
@@ -178,47 +140,8 @@ def calculate_limit_price(current_price: float, side: str, percentage: float) ->
     return limit_price
 
 
-def fetch_all_positions(client: IbkrClient) -> List[Dict[str, Any]]:
-    """
-    Fetch all positions using pagination.
-
-    Args:
-        client: Authenticated IBKR client
-
-    Returns:
-        List of position dictionaries
-    """
-    all_positions = []
-    page = 0
-
-    logger.info("Fetching positions with pagination")
-
-    while True:
-        try:
-            response = client.positions(page=page)
-            current_page_positions = response.data
-
-            if isinstance(current_page_positions, list) and current_page_positions:
-                logger.info(f"Retrieved {len(current_page_positions)} positions from page {page}")
-                all_positions.extend(current_page_positions)
-
-                # If fewer than 100 positions returned, we've reached the last page
-                if len(current_page_positions) < 100:
-                    break
-
-                # Try the next page
-                page += 1
-                time.sleep(0.5)  # Rate limiting
-            else:
-                # No more data or unexpected format
-                break
-
-        except Exception as page_error:
-            logger.error(f"Error fetching positions page {page}: {page_error}")
-            break
-
-    logger.info(f"Retrieved total of {len(all_positions)} positions across {page + 1} pages")
-    return all_positions
+# Position fetching function moved to account_operations.py to avoid duplication
+# Use fetch_all_positions_paginated() from account_operations module instead
 
 
 def find_position_by_symbol(
