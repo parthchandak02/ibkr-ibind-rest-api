@@ -47,11 +47,11 @@ jobs:
         
     - name: Install dependencies
       run: |
-        # Install UV (much faster than pip)
+        # Install UV (modern Python package manager)
         curl -LsSf https://astral.sh/uv/install.sh | sh
         export PATH="$HOME/.cargo/bin:$PATH"
         
-        # Install minimal dependencies (19x faster)
+        # Install minimal dependencies 
         uv pip install --system -r requirements-minimal.txt
         
     - name: Extract trade parameters
@@ -166,7 +166,7 @@ jobs:
         fi
         
         # Extract conid from response
-        CONID=$(echo $SYMBOL_BODY | python3 -c "import sys,json; data=json.loads(sys.stdin.read()); print(data.get('conid',''))")
+        CONID=$(echo $SYMBOL_BODY | python -c "import sys,json; data=json.loads(sys.stdin.read()); print(data.get('conid',''))")
         
         if [ -z "$CONID" ]; then
           echo "❌ Could not extract contract ID from response"

@@ -45,16 +45,16 @@ cd ibind_rest_api
 source ~/aienv/bin/activate
 
 # 3. Install dependencies
-pip install -r requirements.txt
+uv sync  # Installs all dependencies
 
 # 4. Start backend API
 python run_server.py
 
 # 5. View your open orders
-python3 scripts/view_open_orders.py
+uv run python scripts/view_open_orders.py
 
 # 6. Rebalance your portfolio (dry run)
-python3 scripts/rebalance_with_market.py --tickers AAPL TSLA MSFT
+uv run python scripts/rebalance_with_market.py --tickers AAPL TSLA MSFT
 ```
 
 ## 📁 Project Structure
@@ -92,7 +92,7 @@ Displays all your pending orders in a beautiful, formatted table with real-time 
 **Usage:**
 ```bash
 # View all open orders
-python3 scripts/view_open_orders.py
+uv run python scripts/view_open_orders.py
 ```
 
 **Sample Output:**
@@ -120,16 +120,16 @@ Automatically sells 25% of specified stock positions using market orders for imm
 **Usage:**
 ```bash
 # Dry run for single stock
-python3 scripts/rebalance_with_market.py --tickers AAPL
+uv run python scripts/rebalance_with_market.py --tickers AAPL
 
 # Dry run for multiple stocks
-python3 scripts/rebalance_with_market.py --tickers AAPL TSLA MSFT GOOGL
+uv run python scripts/rebalance_with_market.py --tickers AAPL TSLA MSFT GOOGL
 
 # Execute trades (removes --dry-run)
-python3 scripts/rebalance_with_market.py --tickers AAPL TSLA --execute
+uv run python scripts/rebalance_with_market.py --tickers AAPL TSLA --execute
 
 # Process large batch of stocks
-python3 scripts/rebalance_with_market.py --tickers AAPL TSLA MSFT GOOGL AMZN META NVDA AMD INTC CRM --execute
+uv run python scripts/rebalance_with_market.py --tickers AAPL TSLA MSFT GOOGL AMZN META NVDA AMD INTC CRM --execute
 ```
 
 ### 📈 Rebalance with Limit Orders
@@ -146,10 +146,10 @@ Sells 25% of specified positions using limit orders with smart pricing based on 
 **Usage:**
 ```bash
 # Dry run with limit orders
-python3 scripts/rebalance_with_limit.py --tickers AAPL TSLA
+uv run python scripts/rebalance_with_limit.py --tickers AAPL TSLA
 
 # Execute limit orders
-python3 scripts/rebalance_with_limit.py --tickers AAPL TSLA --execute
+uv run python scripts/rebalance_with_limit.py --tickers AAPL TSLA --execute
 ```
 
 ## 🔧 API Endpoints
@@ -270,8 +270,8 @@ curl http://localhost:8080/health
 curl -H "X-API-Key: YOUR_KEY" http://localhost:8080/account
 
 # Run scripts
-python3 scripts/view_open_orders.py
-python3 scripts/rebalance_with_market.py --tickers AAPL --execute
+uv run python scripts/view_open_orders.py
+uv run python scripts/rebalance_with_market.py --tickers AAPL --execute
 ```
 
 ## 🎯 Advanced Usage Examples
@@ -279,7 +279,7 @@ python3 scripts/rebalance_with_market.py --tickers AAPL --execute
 ### Large Portfolio Rebalancing
 ```bash
 # Rebalance 50+ stocks at once
-python3 scripts/rebalance_with_market.py --tickers \
+uv run python scripts/rebalance_with_market.py --tickers \
 AAPL TSLA MSFT GOOGL AMZN META NVDA AMD INTC CRM \
 NFLX ADBE PYPL SPOT SQ ROKU ZM DOCU SNOW PLTR \
 --execute
@@ -288,25 +288,25 @@ NFLX ADBE PYPL SPOT SQ ROKU ZM DOCU SNOW PLTR \
 ### Mixed Order Types
 ```bash
 # Use market orders for liquid stocks
-python3 scripts/rebalance_with_market.py --tickers AAPL TSLA MSFT --execute
+uv run python scripts/rebalance_with_market.py --tickers AAPL TSLA MSFT --execute
 
 # Use limit orders for less liquid stocks  
-python3 scripts/rebalance_with_limit.py --tickers PLTR SNOW ROKU --execute
+uv run python scripts/rebalance_with_limit.py --tickers PLTR SNOW ROKU --execute
 ```
 
 ### Monitoring Workflow
 ```bash
 # 1. Check current orders
-python3 scripts/view_open_orders.py
+uv run python scripts/view_open_orders.py
 
 # 2. Plan rebalancing (dry run)
-python3 scripts/rebalance_with_market.py --tickers AAPL TSLA
+uv run python scripts/rebalance_with_market.py --tickers AAPL TSLA
 
 # 3. Execute trades
-python3 scripts/rebalance_with_market.py --tickers AAPL TSLA --execute
+uv run python scripts/rebalance_with_market.py --tickers AAPL TSLA --execute
 
 # 4. Verify orders were placed
-python3 scripts/view_open_orders.py
+uv run python scripts/view_open_orders.py
 ```
 
 ## 🔧 Troubleshooting
@@ -329,7 +329,7 @@ python run_server.py &
 ls -la api_keys.json
 
 # Generate new key if needed
-python3 backend/auth.py
+uv run python backend/auth.py
 ```
 
 **Order Failures:**

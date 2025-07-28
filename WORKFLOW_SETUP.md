@@ -40,13 +40,13 @@ export GITHUB_REPO_NAME="ibkr-ibind-rest-api"
 ### 3. Test the Backend Endpoint
 
 ```bash
-# 1. Start your Flask server
+# 1. Install dependencies (first time only)
+uv sync
+
+# 2. Start your Flask server
 uv run python run_server.py --port 8080
 
-# 2. Update the test script with your API key (if needed)
-# The script uses a default test API key
-
-# 3. Run the test
+# 3. Run the test (in another terminal)
 uv run python test_workflow_trigger.py
 ```
 

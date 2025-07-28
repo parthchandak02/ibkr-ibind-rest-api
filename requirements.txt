@@ -1,21 +1,18 @@
-# Core Backend API
+# Core Backend Trading API Dependencies
 flask==3.0.3
 flask-cors==4.0.0
 flask-limiter==3.5.0
-ibind
-requests==2.31.0
-pydantic==2.7.1
+ibind>=0.1.18
 pycryptodome==3.19.1
+requests>=2.31.0
 
-# Frontend Dashboard  
-streamlit==1.35.0
-pandas==2.2.2
-plotly==5.22.0
+# Optional: Frontend Dashboard (uncomment if needed)
+# streamlit==1.35.0
+# pandas==2.2.2
+# plotly==5.22.0
 
-# Development Tools (optional)
-black==24.3.0
-isort==5.12.0
-mypy==1.9.0
-pytest==8.1.1
-
-rich
+# Optional: Development Tools (uncomment if needed)  
+# black==24.3.0
+# isort==5.12.0
+# mypy==1.9.0
+# pytest==8.1.1

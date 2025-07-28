@@ -41,7 +41,7 @@ def execute_market_order(dry_run=True, target_tickers=None):
     # This script now requires specific tickers to be provided via the command line.
     if not target_tickers:
         print("❌ Error: Please specify which tickers to process using the --tickers argument.")
-        print("   Example: python3 rebalance_with_market.py --tickers AAPL TSLA")
+        print("   Example: uv run python rebalance_with_market.py --tickers AAPL TSLA")
         return
 
     portfolio_data = fetch_portfolio_data()

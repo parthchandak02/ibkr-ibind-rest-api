@@ -10,7 +10,7 @@ import json
 
 # Test configuration
 API_BASE_URL = "http://localhost:8080"  # Adjust port as needed
-API_KEY = "YOUR_API_KEY_HERE"  # Valid API key for testing
+API_KEY = "REPLACE_WITH_YOUR_API_KEY"  # Generate with: uv run python generate_test_api_key.py
 
 def test_workflow_trigger():
     """Test the /trigger-workflow endpoint"""

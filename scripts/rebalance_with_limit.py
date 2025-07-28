@@ -61,7 +61,7 @@ def execute_rebalance(dry_run=True, target_tickers=None):
     """
     if not target_tickers:
         print("❌ Error: Please specify which tickers to process using the --tickers argument.")
-        print("   Example: python3 rebalance_with_limit.py --tickers AAPL TSLA")
+        print("   Example: uv run python rebalance_with_limit.py --tickers AAPL TSLA")
         return
 
     portfolio_data = fetch_portfolio_data()
