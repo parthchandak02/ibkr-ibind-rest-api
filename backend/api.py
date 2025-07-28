@@ -868,6 +868,41 @@ def trigger_github_workflow():
 
 
 # ===================
+# COMPREHENSIVE API INTEGRATION
+# ===================
+
+# Import comprehensive API router
+from .comprehensive_api import handle_comprehensive_request
+
+
+@app.route("/api/comprehensive-execute", methods=["POST"])
+@require_api_key
+def comprehensive_execute():
+    """
+    🚀 Comprehensive API endpoint for GitHub Actions integration.
+    
+    This unified endpoint can handle ANY backend operation:
+    - Trading operations (buy, sell, rebalance)
+    - Portfolio management (view, export)
+    - Order management (view, cancel, history)
+    - Market data (quotes, prices, history)
+    - Account operations (info, positions)
+    - Data export (CSV, JSON, Excel)
+    
+    Expected JSON payload:
+    {
+        "operation_type": "trading|portfolio|orders|market_data|account|data_export",
+        "action": "operation-specific action",
+        "symbol": "AAPL",
+        "quantity": "1",
+        "dry_run": true,
+        "environment": "paper|live"
+    }
+    """
+    return handle_comprehensive_request()
+
+
+# ===================
 # CLI COMMANDS REGISTRATION
 # ===================
 

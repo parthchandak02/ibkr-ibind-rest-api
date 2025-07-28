@@ -57,6 +57,7 @@ nav:
     - First Trade Execution: tutorials/first-trade.md
   - How-to Guides:
     - how-to/index.md
+    - Comprehensive Remote Trading: how-to/comprehensive-remote-trading.md
     - GitHub Actions Setup: how-to/github-actions-setup.md
     - IBKR Authentication: how-to/ibkr-auth-setup.md
     - Flask CLI Usage: how-to/flask-cli-usage.md
