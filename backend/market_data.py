@@ -38,34 +38,27 @@ def get_market_data_for_conids(conids: List[str]) -> List[Dict]:
         raise MarketDataError("No contract IDs provided")
     
     try:
-        # Process the first conid (this endpoint handles one at a time)
-        conid = conids[0]
-        
-        # Get recent market data
-        response = client.marketdata_history_by_conid(
-            conid=conid,
-            period='1d', 
-            bar='1d', 
-            outside_rth=True
-        )
-        
-        market_data = response.data if hasattr(response, 'data') else response
-        
-        if market_data and 'data' in market_data and market_data['data']:
-            # Get the latest data point
-            latest_data = market_data['data'][-1]
-            price = latest_data.get('c')  # 'c' is the close price
-            
-            if price:
-                # Create response in expected format
-                snapshot_data = [{
-                    'conid': conid,
-                    'last': price,
-                    'close': price
-                }]
-                return snapshot_data
-        
-        raise MarketDataError(f"Could not retrieve price for conid {conid}")
+        snapshots: List[Dict] = []
+        for conid in conids:
+            response = client.marketdata_history_by_conid(
+                conid=conid,
+                period='1d', 
+                bar='1d', 
+                outside_rth=True
+            )
+
+            market_data = response.data if hasattr(response, 'data') else response
+
+            if market_data and 'data' in market_data and market_data['data']:
+                latest_data = market_data['data'][-1]
+                price = latest_data.get('c')
+                if price:
+                    snapshots.append({'conid': conid, 'last': price, 'close': price})
+
+        if not snapshots:
+            raise MarketDataError(f"Could not retrieve prices for provided conids")
+
+        return snapshots
         
     except Exception as e:
         logger.error(f"Failed to get market data for conids {conids}: {e}")

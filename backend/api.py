@@ -17,12 +17,11 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from ibind import QuestionType
-from ibind.client.ibkr_utils import OrderRequest
+from ibind import QuestionType, make_order_request
 
 # Import our modular components
 from .auth import generate_api_key, require_api_key
-from .utils import get_ibkr_client
+from .utils import get_ibkr_client, reset_ibkr_client
 from .health_monitor import (
     get_cached_health_status, 
     start_health_monitor, 
@@ -78,13 +77,8 @@ TRADING_ENV = os.getenv("IBIND_TRADING_ENV", "live_trading")
 # Constants
 VALID_TIME_IN_FORCE = ["DAY", "GTC", "IOC", "FOK"]
 
-# Initialize the singleton IBKR client on startup
-logger.info(f"Initializing IBKR client for {TRADING_ENV} environment")
-try:
-    get_ibkr_client(TRADING_ENV)
-    logger.info("Singleton IBKR client initialization initiated.")
-except Exception as e:
-    logger.error(f"Failed to initialize IBKR client during startup: {e}")
+# Defer IBKR client initialization to runtime usage/startup hooks
+logger.info(f"IBKR client will initialize lazily for environment: {TRADING_ENV}")
 
 
 # ========================
@@ -129,6 +123,7 @@ def resolve_symbol(symbol):
 # =====================
 
 @app.route("/auth", methods=["GET"])
+@require_api_key
 def auth_check():
     """Authentication check endpoint for Nginx auth_request."""
     return jsonify({"status": "ok"})
@@ -137,7 +132,7 @@ def auth_check():
 @app.route("/generate-api-key", methods=["POST"])
 def create_api_key():
     """Generate a new API key (localhost only)."""
-    if request.remote_addr not in ["127.0.0.1", "localhost"]:
+    if request.remote_addr not in ["127.0.0.1", "localhost", "::1"]:
         return jsonify({
             "status": "error", 
             "message": "This endpoint can only be accessed locally"
@@ -200,6 +195,14 @@ def switch_environment():
         }), 400
 
     TRADING_ENV = env
+    # Reset client for the previous env and warm up for the new env lazily
+    try:
+        reset_ibkr_client()
+        # Optionally warm up new env
+        get_ibkr_client(TRADING_ENV)
+        logger.info(f"Switched environment and initialized client for: {TRADING_ENV}")
+    except Exception as e:
+        logger.warning(f"Environment switched to {TRADING_ENV}, but client init failed: {e}")
     return jsonify({"status": "ok", "environment": TRADING_ENV})
 
 
@@ -326,18 +329,16 @@ def place_order():
         f'order-{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
     )
 
-    order_request = OrderRequest(
+    order_request = make_order_request(
         conid=int(data["conid"]),
         side=data["side"],
         quantity=int(data["quantity"]),
         order_type=data["order_type"],
+        price=round(float(data["price"]), 2) if "price" in data else None,
         acct_id=client.account_id,
         coid=order_tag,
         tif=tif,
     )
-
-    if "price" in data:
-        order_request.price = round(float(data["price"]), 2)
 
     # Define standard answers
     answers = {
@@ -427,7 +428,7 @@ def place_bulk_orders():
     
     for order_data in data['orders']:
         try:
-            order_request = OrderRequest(
+            order_request = make_order_request(
                 conid=order_data['conid'],
                 side=order_data['side'],
                 quantity=order_data['quantity'],
@@ -671,20 +672,18 @@ def place_simple_order():
         # Create order request
         order_tag = f'simple-{symbol}-{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
 
-        order_request = OrderRequest(
+        order_request = make_order_request(
             conid=int(conid),
             side=action,
             quantity=quantity,
             order_type=order_type,
+            price=(round(float(data["limit_price"]), 2) if order_type == "LMT" and "limit_price" in data else None),
             acct_id=client.account_id,
             coid=order_tag,
             tif="DAY",
         )
-
-        # Set limit price if provided
         if order_type == "LMT" and "limit_price" in data:
-            order_request.price = round(float(data["limit_price"]), 2)
-            logger.info(f"Setting limit price to ${order_request.price}")
+            logger.info(f"Setting limit price to ${round(float(data['limit_price']), 2)}")
 
         # Define standard answers
         answers = {
@@ -731,6 +730,7 @@ def place_simple_order():
 # ===================
 
 @app.route('/trigger-workflow', methods=['POST'])
+@limiter.limit("5 per minute")
 @require_api_key
 def trigger_github_workflow():
     """
