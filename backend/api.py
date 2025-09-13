@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+THIS SHOULD BE A LINTER ERROR#!/usr/bin/env python3
 """
 IBKR REST API - Lightweight Route Definitions
 
@@ -132,7 +132,7 @@ def auth_check():
 @app.route("/generate-api-key", methods=["POST"])
 def create_api_key():
     """Generate a new API key (localhost only)."""
-    if request.remote_addr not in ["127.0.0.1", "localhost"]:
+    if request.remote_addr not in ["127.0.0.1", "localhost", "::1"]:
         return jsonify({
             "status": "error", 
             "message": "This endpoint can only be accessed locally"
@@ -734,6 +734,7 @@ def place_simple_order():
 # ===================
 
 @app.route('/trigger-workflow', methods=['POST'])
+@limiter.limit("5 per minute")
 @require_api_key
 def trigger_github_workflow():
     """

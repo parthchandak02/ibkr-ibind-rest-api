@@ -48,7 +48,7 @@ source ~/aienv/bin/activate
 uv sync  # Installs all dependencies
 
 # 4. Start backend API
-python run_server.py
+uv run python run_server.py
 
 # 5. View your open orders
 uv run python scripts/view_open_orders.py
@@ -62,7 +62,7 @@ uv run python scripts/rebalance_with_market.py --tickers AAPL TSLA MSFT
 ```
 ibind_rest_api/
 ├── 📄 README.md                 # This comprehensive guide
-├── 📄 requirements.txt          # Python dependencies
+├── 📄 pyproject.toml            # Python dependencies (via UV)
 ├── 🔧 backend/                  # Core API Backend
 │   ├── api.py                  # Flask REST endpoints with bulk trading
 │   ├── utils.py                # Singleton IBKR client & OAuth handling

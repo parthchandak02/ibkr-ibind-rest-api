@@ -10,7 +10,7 @@ from pathlib import Path
 
 from ibind import IbkrClient
 from ibind.oauth.oauth1a import OAuth1aConfig
-from ibind.support.errors import ExternalBrokerError
+# from ibind.support.errors import ExternalBrokerError  # Unused
 
 from .config import Config
 

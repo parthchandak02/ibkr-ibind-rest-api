@@ -34,6 +34,7 @@ from .trading_operations import (
 )
 from .market_data import get_current_price_for_symbol, get_market_data_for_conids, MarketDataError
 from .data_export import generate_positions_csv, get_positions_with_limit
+from ibind import make_order_request, QuestionType
 
 logger = logging.getLogger(__name__)
 
@@ -140,23 +141,27 @@ class ComprehensiveAPIRouter:
                 percentage = float(quantity)
                 all_positions = fetch_all_positions_paginated()
                 position = find_position_by_symbol(all_positions, symbol, conid)
-                
-                sell_quantity = calculate_sell_quantity(position, percentage)
-                
+
+                sell_quantity = calculate_sell_quantity(position, percentage, symbol)
+                current_price = get_current_price_for_symbol(symbol, conid)
+                limit_price = current_price
+
                 result = place_percentage_order(
                     client=client,
                     symbol=symbol,
                     conid=conid,
                     side="SELL",
-                    percentage_of_position=percentage,
-                    dry_run=dry_run
+                    quantity=sell_quantity,
+                    limit_price=limit_price,
+                    time_in_force=data.get('time_in_force', 'GTC')
                 )
-                
+
                 return {
                     'action': 'rebalance',
                     'symbol': symbol,
                     'percentage': percentage,
                     'quantity_sold': sell_quantity,
+                    'limit_price': limit_price,
                     'result': result
                 }
                 
@@ -164,34 +169,41 @@ class ComprehensiveAPIRouter:
                 # Handle direct buy/sell orders
                 side = action.upper()
                 order_quantity = int(float(quantity))
-                
+
                 if price:
-                    # Limit order
                     order_type = "LMT"
                     limit_price = float(price)
                 else:
-                    # Market order
                     order_type = "MKT"
                     limit_price = None
-                
-                # For now, use the percentage order function adapted for direct orders
-                result = place_percentage_order(
-                    client=client,
-                    symbol=symbol,
+
+                order_request = make_order_request(
                     conid=conid,
                     side=side,
                     quantity=order_quantity,
-                    limit_price=limit_price,
-                    dry_run=dry_run
+                    order_type=order_type,
+                    price=limit_price,
+                    acct_id=client.account_id,
+                    tif=data.get('time_in_force', 'DAY'),
                 )
-                
+
+                answers = {
+                    QuestionType.PRICE_PERCENTAGE_CONSTRAINT: True,
+                    QuestionType.ORDER_VALUE_LIMIT: True,
+                    QuestionType.MISSING_MARKET_DATA: True,
+                    QuestionType.STOP_ORDER_RISKS: True,
+                    "Unforeseen new question": True,
+                }
+
+                result = client.place_order(order_request, answers)
+
                 return {
                     'action': action,
                     'symbol': symbol,
                     'quantity': order_quantity,
                     'order_type': order_type,
                     'limit_price': limit_price,
-                    'result': result
+                    'data': result.data
                 }
             
             else:

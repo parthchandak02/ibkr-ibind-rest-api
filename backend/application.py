@@ -11,6 +11,8 @@ from pathlib import Path
 
 from .api import app
 from .config import Config
+from .health_monitor import start_health_monitor
+from .utils import get_ibkr_client
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +79,20 @@ class Application:
         # Validate OAuth files before starting
         if not self.validate_oauth_files():
             raise FileNotFoundError("Required OAuth files are missing")
+
+        # Start background health monitor (once)
+        try:
+            start_health_monitor()
+        except Exception:
+            # Avoid blocking server start on monitor issues
+            pass
+
+        # Lazily initialize client for the selected environment
+        try:
+            get_ibkr_client(self.environment)
+        except Exception:
+            # Client will be initialized on first use; log handled elsewhere
+            pass
 
         # Start the Flask application
         self.app.run(host=host, port=port, debug=debug)
