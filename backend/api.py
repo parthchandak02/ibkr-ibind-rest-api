@@ -22,7 +22,7 @@ from ibind.client.ibkr_utils import OrderRequest
 
 # Import our modular components
 from .auth import generate_api_key, require_api_key
-from .utils import get_ibkr_client
+from .utils import get_ibkr_client, reset_ibkr_client
 from .health_monitor import (
     get_cached_health_status, 
     start_health_monitor, 
@@ -78,13 +78,8 @@ TRADING_ENV = os.getenv("IBIND_TRADING_ENV", "live_trading")
 # Constants
 VALID_TIME_IN_FORCE = ["DAY", "GTC", "IOC", "FOK"]
 
-# Initialize the singleton IBKR client on startup
-logger.info(f"Initializing IBKR client for {TRADING_ENV} environment")
-try:
-    get_ibkr_client(TRADING_ENV)
-    logger.info("Singleton IBKR client initialization initiated.")
-except Exception as e:
-    logger.error(f"Failed to initialize IBKR client during startup: {e}")
+# Defer IBKR client initialization to runtime usage/startup hooks
+logger.info(f"IBKR client will initialize lazily for environment: {TRADING_ENV}")
 
 
 # ========================
@@ -200,6 +195,14 @@ def switch_environment():
         }), 400
 
     TRADING_ENV = env
+    # Reset client for the previous env and warm up for the new env lazily
+    try:
+        reset_ibkr_client()
+        # Optionally warm up new env
+        get_ibkr_client(TRADING_ENV)
+        logger.info(f"Switched environment and initialized client for: {TRADING_ENV}")
+    except Exception as e:
+        logger.warning(f"Environment switched to {TRADING_ENV}, but client init failed: {e}")
     return jsonify({"status": "ok", "environment": TRADING_ENV})
 
 
