@@ -1,4 +1,4 @@
-THIS SHOULD BE A LINTER ERROR#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 IBKR REST API - Lightweight Route Definitions
 
@@ -17,8 +17,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from ibind import QuestionType
-from ibind.client.ibkr_utils import OrderRequest
+from ibind import QuestionType, make_order_request
 
 # Import our modular components
 from .auth import generate_api_key, require_api_key
@@ -124,6 +123,7 @@ def resolve_symbol(symbol):
 # =====================
 
 @app.route("/auth", methods=["GET"])
+@require_api_key
 def auth_check():
     """Authentication check endpoint for Nginx auth_request."""
     return jsonify({"status": "ok"})
@@ -329,18 +329,16 @@ def place_order():
         f'order-{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
     )
 
-    order_request = OrderRequest(
+    order_request = make_order_request(
         conid=int(data["conid"]),
         side=data["side"],
         quantity=int(data["quantity"]),
         order_type=data["order_type"],
+        price=round(float(data["price"]), 2) if "price" in data else None,
         acct_id=client.account_id,
         coid=order_tag,
         tif=tif,
     )
-
-    if "price" in data:
-        order_request.price = round(float(data["price"]), 2)
 
     # Define standard answers
     answers = {
@@ -430,7 +428,7 @@ def place_bulk_orders():
     
     for order_data in data['orders']:
         try:
-            order_request = OrderRequest(
+            order_request = make_order_request(
                 conid=order_data['conid'],
                 side=order_data['side'],
                 quantity=order_data['quantity'],
@@ -674,20 +672,18 @@ def place_simple_order():
         # Create order request
         order_tag = f'simple-{symbol}-{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
 
-        order_request = OrderRequest(
+        order_request = make_order_request(
             conid=int(conid),
             side=action,
             quantity=quantity,
             order_type=order_type,
+            price=(round(float(data["limit_price"]), 2) if order_type == "LMT" and "limit_price" in data else None),
             acct_id=client.account_id,
             coid=order_tag,
             tif="DAY",
         )
-
-        # Set limit price if provided
         if order_type == "LMT" and "limit_price" in data:
-            order_request.price = round(float(data["limit_price"]), 2)
-            logger.info(f"Setting limit price to ${order_request.price}")
+            logger.info(f"Setting limit price to ${round(float(data['limit_price']), 2)}")
 
         # Define standard answers
         answers = {
