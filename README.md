@@ -48,7 +48,7 @@ source ~/aienv/bin/activate
 uv sync  # Installs all dependencies
 
 # 4. Start backend API
-python run_server.py
+uv run python run_server.py
 
 # 5. View your open orders
 uv run python scripts/view_open_orders.py
@@ -62,7 +62,7 @@ uv run python scripts/rebalance_with_market.py --tickers AAPL TSLA MSFT
 ```
 ibind_rest_api/
 ├── 📄 README.md                 # This comprehensive guide
-├── 📄 requirements.txt          # Python dependencies
+├── 📄 pyproject.toml            # Python dependencies (via UV)
 ├── 🔧 backend/                  # Core API Backend
 │   ├── api.py                  # Flask REST endpoints with bulk trading
 │   ├── utils.py                # Singleton IBKR client & OAuth handling
@@ -253,7 +253,7 @@ response = requests.post(f"{API_BASE_URL}/orders/bulk", json={"orders": orders_p
 ## 🛠️ Development Setup
 
 ### Prerequisites
-- **Python**: 3.11+ with virtual environment
+- **Python**: 3.13+ with virtual environment
 - **IBKR Account**: Live or paper trading enabled
 - **OAuth Certificates**: Placed in `live_trading_oauth_files/`
 - **Configuration**: Valid `config.json` and `api_keys.json`
@@ -261,7 +261,7 @@ response = requests.post(f"{API_BASE_URL}/orders/bulk", json={"orders": orders_p
 ### Development Workflow
 ```bash
 # Start backend API
-python run_server.py  # API on :8080
+uv run python run_server.py  # API on :8080
 
 # Test API health
 curl http://localhost:8080/health
@@ -365,9 +365,9 @@ Our complete documentation is organized following the [Diátaxis framework](http
 
 ### Quick Links
 - **[🚀 Getting Started](docs/tutorials/getting-started.md)** - Your first setup
-- **[🔌 API Reference](docs/reference/api-endpoints.md)** - REST API documentation
-- **[⌨️ CLI Commands](docs/reference/cli-commands.md)** - Command-line tools
-- **[🔒 Security Model](docs/explanations/security.md)** - Safety and authentication
+- API Reference (coming soon)
+- CLI Commands (coming soon)
+- Security Model (coming soon)
 
 ### Build Documentation Locally
 ```bash

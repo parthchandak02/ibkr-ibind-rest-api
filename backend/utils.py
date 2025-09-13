@@ -10,7 +10,7 @@ from pathlib import Path
 
 from ibind import IbkrClient
 from ibind.oauth.oauth1a import OAuth1aConfig
-from ibind.support.errors import ExternalBrokerError
+# from ibind.support.errors import ExternalBrokerError  # Unused
 
 from .config import Config
 
@@ -23,29 +23,29 @@ logger = logging.getLogger(__name__)
 # --- Singleton IBKR Client --- #
 
 class SingletonIBKRClient:
-    """A thread-safe singleton to manage the IBKR client connection."""
-    _client_instance = None
+    """A thread-safe singleton to manage the IBKR client connection per environment."""
+    _clients_by_env = {}
     _lock = threading.Lock()
 
     @classmethod
     def get_instance(cls, environment="live_trading"):
-        """Get the singleton client instance, creating it if necessary."""
-        if cls._client_instance is None:
+        """Get or create the singleton client instance for the specified environment."""
+        env_key = environment or os.getenv("IBIND_TRADING_ENV", "live_trading")
+        if env_key not in cls._clients_by_env:
             with cls._lock:
                 # Double-check locking to prevent race conditions
-                if cls._client_instance is None:
-                    logger.info("Initializing Singleton IBKR Client...")
-                    cls._client_instance = cls._create_new_client(environment)
-        return cls._client_instance
+                if env_key not in cls._clients_by_env:
+                    logger.info(f"Initializing IBKR Client for env: {env_key}...")
+                    cls._clients_by_env[env_key] = cls._create_new_client(env_key)
+        return cls._clients_by_env[env_key]
 
     @classmethod
-    def get_health(cls):
-        """Check the health of the singleton client."""
-        client = cls.get_instance()
-        if not client:
-            return False
+    def get_health(cls, environment: str | None = None):
+        """Check the health of the client for the given environment (or current)."""
         try:
-            # Use a quick, lightweight check
+            client = cls.get_instance(environment)
+            if not client:
+                return False
             return client.check_health()
         except Exception as e:
             logger.error(f"Singleton health check failed: {e}")
@@ -60,7 +60,12 @@ class SingletonIBKRClient:
         config = Config(environment)
         oauth_config = config.get_oauth_config()
         api_config = config.get_api_config()
-        host = api_config.get("live_trading_host")
+        # Allow host to be configured per env; fallback to generic 'host'
+        host = (
+            api_config.get("host")
+            or api_config.get("live_trading_host")
+            or api_config.get("paper_trading_host")
+        )
 
         oauth_dir = f"{environment}_oauth_files"
         encryption_key_path = str(base_dir / oauth_dir / "private_encryption.pem")
@@ -126,12 +131,20 @@ class SingletonIBKRClient:
 # --- End Singleton --- #
 
 def get_ibkr_client(environment="live_trading"):
-    """Public function to access the singleton client."""
+    """Public function to access the singleton client for the given environment."""
     return SingletonIBKRClient.get_instance(environment)
 
-def check_ibkr_health_status():
-    """Public function to check the health of the singleton client."""
-    return SingletonIBKRClient.get_health()
+def check_ibkr_health_status(environment: str | None = None):
+    """Public function to check the health of the client for the given environment."""
+    return SingletonIBKRClient.get_health(environment)
+
+def reset_ibkr_client(environment: str | None = None):
+    """Reset the cached client for an environment (or all if None)."""
+    with SingletonIBKRClient._lock:
+        if environment:
+            SingletonIBKRClient._clients_by_env.pop(environment, None)
+        else:
+            SingletonIBKRClient._clients_by_env.clear()
 
 # The old get_ibkr_client logic has been moved into the Singleton class.
 # The old caching functions are no longer needed.

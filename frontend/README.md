@@ -29,7 +29,7 @@ frontend/
 ## ✅ 2025 Features Implemented
 
 - **Component-based Architecture**: Separated concerns into reusable components
-- **Modern Astro 5.2**: Latest version with trailing slash handling
+- **Modern Astro 5.x**: Latest version with trailing slash handling
 - **TypeScript Support**: Full type checking and path aliases
 - **Security-First Design**: No API keys exposed in frontend
 - **Island Architecture**: Leverages Astro's performance benefits

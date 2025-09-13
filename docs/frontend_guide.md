@@ -15,7 +15,7 @@ The frontend provides a **modern, professional trading interface** with:
 
 ```bash
 # 1. Ensure backend is running
-python run_server.py  # Backend on :8080
+uv run python run_server.py  # Backend on :8080
 
 # 2. Start frontend
 cd frontend
@@ -354,7 +354,7 @@ fig.add_annotation(
 ### Local Development
 ```bash
 # Terminal 1: Backend
-python run_server.py
+uv run python run_server.py
 
 # Terminal 2: Frontend
 streamlit run frontend/streamlit_app.py --server.port 8501 --server.headless true

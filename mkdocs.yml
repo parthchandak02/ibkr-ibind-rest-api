@@ -59,18 +59,13 @@ nav:
     - how-to/index.md
     - Comprehensive Remote Trading: how-to/comprehensive-remote-trading.md
     - GitHub Actions Setup: how-to/github-actions-setup.md
-    - IBKR Authentication: how-to/ibkr-auth-setup.md
     - Flask CLI Usage: how-to/flask-cli-usage.md
   - Explanations:
     - explanations/index.md
-    - System Architecture: explanations/architecture.md
-    - Security Model: explanations/security.md
-    - Trading Workflows: explanations/trading-workflows.md
+    # Placeholders removed until pages exist
   - Reference:
     - reference/index.md
-    - API Endpoints: reference/api-endpoints.md
-    - CLI Commands: reference/cli-commands.md
-    - Configuration: reference/configuration.md
+    # Placeholders removed until pages exist
     - UV Dependency Management: reference/uv-dependency-management.md
 
 # Plugins
