@@ -911,6 +911,13 @@ from .cli import register_cli_commands
 register_cli_commands(app)
 
 # ===================
+# API PREFIX ALIASES
+# ===================
+# Minimal '/api/*' aliases for consistent frontend proxying in dev/preview
+app.add_url_rule("/api/health", view_func=health_check, methods=["GET"], endpoint="alias_api_health")
+app.add_url_rule("/api/trigger-workflow", view_func=trigger_github_workflow, methods=["POST"], endpoint="alias_api_trigger_workflow")
+
+# ===================
 # APP INITIALIZATION
 # ===================
 
