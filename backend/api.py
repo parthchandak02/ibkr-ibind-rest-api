@@ -50,7 +50,7 @@ from .trading_operations import (
 # Add GitHub API integration
 import requests
 import json
-from datetime import datetime
+# Removed conflicting import - using datetime module import instead
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -804,7 +804,7 @@ def trigger_github_workflow():
                 "quantity": quantity,
                 "limit_price": limit_price,
                 "triggered_by": "frontend_api",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.datetime.utcnow().isoformat(),
                 "source_ip": request.remote_addr
             }
         }
