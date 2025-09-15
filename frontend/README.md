@@ -54,6 +54,12 @@ npm run preview
 npm run check
 ```
 
+### Backend connectivity
+
+- During local dev, API calls are proxied to `http://localhost:8080` via Vite. Ensure the backend is running on port 8080.
+- The UI includes a "Backend API Key" field. Generate an API key via backend (POST `/generate-api-key` from localhost) and paste it there.
+- To override the API base in production, set `PUBLIC_API_BASE` at build time (e.g., `https://your-domain.com`). The app falls back to `/api` by default.
+
 ## 🛡️ Security Features
 
 - **No Direct API Calls**: Frontend cannot make direct trading API calls

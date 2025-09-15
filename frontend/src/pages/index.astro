@@ -8,6 +8,9 @@ import StatusSection from '../components/StatusSection.astro';
 ---
 
 <BaseLayout title="Trading Terminal - Secure Execution">
+  <script is:inline>
+    window.PUBLIC_API_BASE = import.meta.env.PUBLIC_API_BASE || '/api';
+  </script>
   <div class="trading-container">
     <TradingHeader />
     <StatusSection />

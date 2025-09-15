@@ -5,6 +5,9 @@ console.log('🚀 Trading Terminal loading...');
 let isLoading = false;
 let statusTimeout = null;
 
+// API base for backend calls (set in index.astro via window.PUBLIC_API_BASE)
+const API_BASE = (typeof window !== 'undefined' && window.PUBLIC_API_BASE) ? window.PUBLIC_API_BASE : '/api';
+
 // Status icons for different states
 const statusIcons = {
   loading: `<div class="loading-spinner"></div>`,
@@ -165,6 +168,62 @@ document.addEventListener('DOMContentLoaded', function() {
         'error',
         error.message || 'An unexpected error occurred'
       );
+    }
+  };
+
+  // Ping backend health endpoint via proxy
+  window.pingBackend = async function() {
+    const apiKey = document.getElementById('api-key')?.value;
+    if (!apiKey) {
+      window.showStatus('Missing API Key', 'warning', 'Enter your backend X-API-Key to ping health');
+      return;
+    }
+
+    window.showStatus('Pinging Backend...', 'loading', `GET ${API_BASE}/health`);
+    try {
+      const res = await fetch(`${API_BASE}/health`, {
+        headers: { 'X-API-Key': apiKey }
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.message || `HTTP ${res.status}`);
+      const detail = data?.status || 'ok';
+      window.showStatus('Backend Healthy', 'success', typeof data === 'object' ? JSON.stringify({ status: detail, ibkr_connected: data?.ibkr_connected }, null, 0) : String(detail));
+    } catch (e) {
+      window.showStatus('Backend Health Failed', 'error', e.message || 'Unable to reach backend');
+    }
+  };
+
+  // Trigger backend-managed GitHub workflow
+  window.triggerBackendWorkflow = async function() {
+    const apiKey = document.getElementById('api-key')?.value;
+    if (!apiKey) {
+      window.showStatus('Missing API Key', 'error', 'Enter your backend X-API-Key');
+      return;
+    }
+
+    window.showStatus('Triggering Backend Workflow...', 'loading', `POST ${API_BASE}/trigger-workflow`);
+    try {
+      const response = await fetch(`${API_BASE}/trigger-workflow`, {
+        method: 'POST',
+        headers: {
+          'X-API-Key': apiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          symbol: 'AAPL',
+          action: 'BUY',
+          quantity: 1,
+          limit_price: 20.00
+        })
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.message || `HTTP ${response.status}`);
+
+      window.showStatus('Backend Workflow Triggered!', 'success', 'Check backend logs and GitHub Actions');
+    } catch (error) {
+      console.error('Backend workflow error:', error);
+      window.showStatus('Backend Workflow Failed', 'error', error.message || 'Unexpected error');
     }
   };
   
