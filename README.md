@@ -1,6 +1,6 @@
 # 🚀 IBKR Trading API
 
-Lightweight REST API for Interactive Brokers trading with auto-generated documentation.
+Minimal REST API for Interactive Brokers trading automation. Designed for local automation, cron jobs, and algorithmic trading.
 
 ## ⚡ Quick Start
 
@@ -12,25 +12,23 @@ uv sync
 uv run python run_server.py
 ```
 
-**API Server**: http://localhost:8080
+**API Server**: http://127.0.0.1:8080 (localhost only)
 
-## 📚 API Documentation
+## 🔧 Local Automation Setup
 
-**Auto-generated, always up-to-date documentation:**
-- **[Swagger UI](http://localhost:8080/docs)** - Interactive API testing
-- **[ReDoc](http://localhost:8080/redoc)** - Beautiful documentation
-- **[OpenAPI JSON](http://localhost:8080/openapi.json)** - API specification
+No authentication required - designed for trusted local environment:
 
-## 🔑 Authentication
-
-Generate API key:
 ```bash
-uv run python utils/generate_key.py --name "MyApp"
-```
+# Check system health
+curl http://127.0.0.1:8080/health
 
-Use in requests:
-```bash
-curl -H "X-API-Key: YOUR_KEY" http://localhost:8080/health
+# Get account info
+curl http://127.0.0.1:8080/account
+
+# Place order by symbol
+curl -X POST http://127.0.0.1:8080/order/symbol \
+  -H "Content-Type: application/json" \
+  -d '{"symbol":"AAPL","side":"BUY","quantity":1,"order_type":"MKT"}'
 ```
 
 ## 🎯 Core Endpoints
@@ -41,16 +39,19 @@ curl -H "X-API-Key: YOUR_KEY" http://localhost:8080/health
 | `GET /account` | Account info + positions |
 | `GET /positions?limit=200` | Portfolio positions |
 | `GET /resolve/{symbol}` | Symbol → Contract ID |
-| `POST /order` | Place market/limit orders |
-| `POST /percentage-limit-order/{symbol}` | Smart percentage-based orders |
+| `POST /order` | Place orders (requires contract ID) |
+| `POST /order/symbol` | Place orders by symbol (auto-resolves) |
+| `POST /percentage-order/{symbol}` | Percentage-based position sizing |
+| `GET /orders` | Get all current orders |
 
 ## 📱 Features
 
-- **Real-time trading** with 147+ positions
-- **Percentage-based orders** (consistent BUY/SELL API)  
-- **Extended hours trading** support
-- **Auto-updating docs** - never out of sync
-- **Comprehensive API endpoints** for all trading operations
+- **Zero authentication** - trusted local environment
+- **Minimal dependencies** - no CORS, rate limiting, or UI bloat  
+- **Automation-ready** - perfect for cron jobs and scripts
+- **Symbol resolution** - trade by ticker without manual lookups
+- **Percentage orders** - position sizing based on account value
+- **Extended hours trading** - algorithmic trading outside market hours
 
 ## 🛠️ Configuration
 
@@ -61,10 +62,41 @@ curl -H "X-API-Key: YOUR_KEY" http://localhost:8080/health
 ## 📦 Dependencies
 
 - Python 3.13+
-- Flask (REST API)
+- Flask (minimal setup)
 - ibind (IBKR integration)
-- rich (CLI output)
+- No authentication, CORS, or rate limiting overhead
+
+## 🔄 Weekly Cron Job Example
+
+```bash
+#!/bin/bash
+# Example weekly trading automation
+
+# Start API server
+cd /path/to/ibind_rest_api
+uv run python run_server.py &
+API_PID=$!
+
+# Wait for server to start
+sleep 5
+
+# Check health
+curl http://127.0.0.1:8080/health
+
+# Execute trading logic
+curl -X POST http://127.0.0.1:8080/percentage-order/SPY \
+  -H "Content-Type: application/json" \
+  -d '{
+    "side": "BUY",
+    "percentage_of_buying_power": 10,
+    "percentage_below_market": 2,
+    "time_in_force": "GTC"
+  }'
+
+# Stop server
+kill $API_PID
+```
 
 ---
 
-**💡 Documentation is auto-generated from code - always accurate!**
+**💡 Designed for automation - no web UI complexity!**

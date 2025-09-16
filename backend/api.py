@@ -1,32 +1,21 @@
 #!/usr/bin/env python3
 """
-IBKR REST API - Lightweight Route Definitions
+IBKR Trading API - Simplified for Local Automation
 
-A Flask-based REST API for Interactive Brokers (IBKR) trading operations.
-This module contains only route definitions - all business logic has been
-moved to dedicated modules for better maintainability.
+A minimal Flask-based REST API for Interactive Brokers (IBKR) trading operations.
+Designed for local automation and cron jobs - no authentication, CORS, or rate limiting.
 """
 
 import datetime
 import logging
 import os
-import uuid
 from typing import Dict, Any
 
 from flask import Flask, jsonify, request
-from flask_cors import CORS
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from ibind import QuestionType, make_order_request
 
 # Import our modular components
-from .auth import generate_api_key, require_api_key
 from .utils import get_ibkr_client, reset_ibkr_client
-from .health_monitor import (
-    get_cached_health_status, 
-    start_health_monitor, 
-    create_health_sse_response
-)
 from .market_data import get_market_data_for_conids, get_current_price_for_symbol, MarketDataError
 from .data_export import generate_positions_csv, get_positions_with_limit
 from .account_operations import (
@@ -48,24 +37,8 @@ from .trading_operations import (
     PositionNotFoundError
 )
 
-import requests
-import json
-# Removed conflicting import - using datetime module import instead
-
-# Add OpenAPI documentation
-from .openapi_docs import add_openapi_routes
-
-# Initialize Flask app
+# Initialize Flask app (minimal setup)
 app = Flask(__name__)
-CORS(app)
-
-# Configure rate limiting
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://",
-)
 
 # Configure logging
 logging.basicConfig(
@@ -76,24 +49,43 @@ logger = logging.getLogger(__name__)
 
 # Global variable to track the trading environment
 TRADING_ENV = os.getenv("IBIND_TRADING_ENV", "live_trading")
-
-# Constants
 VALID_TIME_IN_FORCE = ["DAY", "GTC", "IOC", "FOK"]
 
-# Defer IBKR client initialization to runtime usage/startup hooks
 logger.info(f"IBKR client will initialize lazily for environment: {TRADING_ENV}")
 
-# Add OpenAPI documentation routes
-add_openapi_routes(app)
+
+# ================
+# HEALTH CHECK
+# ================
+
+@app.route("/health", methods=["GET"])
+def health_check():
+    """Simple health check for automation monitoring."""
+    try:
+        client = get_ibkr_client()
+        ibkr_connected = client and client.check_health() if client else False
+        
+        return jsonify({
+            "status": "healthy" if ibkr_connected else "unhealthy",
+            "ibkr_connected": ibkr_connected,
+            "timestamp": datetime.datetime.now().isoformat(),
+            "environment": TRADING_ENV
+        })
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return jsonify({
+            "status": "unhealthy",
+            "ibkr_connected": False,
+            "error": str(e),
+            "timestamp": datetime.datetime.now().isoformat()
+        }), 500
 
 
 # ========================
-# SYMBOL RESOLUTION ENDPOINT  
+# SYMBOL RESOLUTION
 # ========================
 
 @app.route("/resolve/<symbol>", methods=["GET"])
-@limiter.limit("30 per minute")
-@require_api_key
 def resolve_symbol(symbol):
     """Resolve a stock symbol to contract ID."""
     client = get_ibkr_client()
@@ -124,101 +116,11 @@ def resolve_symbol(symbol):
         }), 500
 
 
-# =====================
-# AUTHENTICATION ROUTES
-# =====================
-
-@app.route("/auth", methods=["GET"])
-@require_api_key
-def auth_check():
-    """Authentication check endpoint for Nginx auth_request."""
-    return jsonify({"status": "ok"})
-
-
-@app.route("/generate-api-key", methods=["POST"])
-def create_api_key():
-    """Generate a new API key (localhost only)."""
-    if request.remote_addr not in ["127.0.0.1", "localhost", "::1"]:
-        return jsonify({
-            "status": "error", 
-            "message": "This endpoint can only be accessed locally"
-        }), 403
-
-    data = request.json
-    name = data.get("name", "Default")
-
-    try:
-        api_key = generate_api_key(name)
-        return jsonify({"status": "ok", "api_key": api_key})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-
-# ================
-# HEALTH ENDPOINTS
-# ================
-
-@app.route("/health", methods=["GET"])
-@limiter.limit("10 per minute")
-@require_api_key
-def health_check():
-    """Lightweight health check endpoint using cached status."""
-    try:
-        return jsonify(get_cached_health_status())
-    except Exception as e:
-        logger.error(f"Health check failed: {e}")
-        return jsonify({
-            "status": "unhealthy",
-            "ibkr_connected": False,
-            "error": str(e),
-            "timestamp": datetime.datetime.now().timestamp()
-        }), 500
-
-
-@app.route("/events/health")
-def health_events():
-    """Server-Sent Events endpoint for real-time health updates."""
-    return create_health_sse_response()
-
-
-# ====================
-# ENVIRONMENT ENDPOINT
-# ====================
-
-@app.route("/switch-environment", methods=["POST"])
-@limiter.limit("5 per minute")
-def switch_environment():
-    """Switch between paper and live trading environments."""
-    global TRADING_ENV
-
-    data = request.json
-    env = data.get("environment")
-
-    if env not in ["paper_trading", "live_trading"]:
-        return jsonify({
-            "status": "error",
-            "message": "Invalid environment. Must be 'paper_trading' or 'live_trading'"
-        }), 400
-
-    TRADING_ENV = env
-    # Reset client for the previous env and warm up for the new env lazily
-    try:
-        reset_ibkr_client()
-        # Optionally warm up new env
-        get_ibkr_client(TRADING_ENV)
-        logger.info(f"Switched environment and initialized client for: {TRADING_ENV}")
-    except Exception as e:
-        logger.warning(f"Environment switched to {TRADING_ENV}, but client init failed: {e}")
-    return jsonify({"status": "ok", "environment": TRADING_ENV})
-
-
 # ==================
 # ACCOUNT ENDPOINTS
 # ==================
 
 @app.route("/account", methods=["GET"])
-@limiter.limit("30 per minute")
-@require_api_key
 def get_account():
     """Get all account data, including positions and account summary."""
     try:
@@ -236,13 +138,44 @@ def get_account():
         }), 500
 
 
+@app.route("/positions", methods=["GET"])
+def get_positions():
+    """Returns positions in JSON format with optional limit."""
+    limit = request.args.get("limit", 10, type=int)
+    
+    try:
+        positions_data = get_positions_with_limit(limit)
+        return jsonify({
+            "status": "ok",
+            "environment": TRADING_ENV,
+            **positions_data
+        })
+    except Exception as e:
+        logger.error(f"Positions retrieval failed: {e}")
+        return jsonify({
+            "status": "error", 
+            "message": str(e)
+        }), 500
+
+
+@app.route("/positions/csv", methods=["GET"])
+def get_positions_csv():
+    """Returns a CSV file of all positions."""
+    try:
+        return generate_positions_csv()
+    except Exception as e:
+        logger.error(f"CSV export failed: {e}")
+        return jsonify({
+            "status": "error", 
+            "message": str(e)
+        }), 500
+
+
 # ================
 # ORDER ENDPOINTS
 # ================
 
 @app.route("/orders", methods=["GET"])
-@limiter.limit("30 per minute")
-@require_api_key
 def get_orders():
     """Get all orders for the user."""
     try:
@@ -259,25 +192,7 @@ def get_orders():
         }), 500
 
 
-@app.route("/order/<order_id>", methods=["GET"])
-@limiter.limit("30 per minute")
-@require_api_key
-def get_order(order_id):
-    """Get details for a specific order by its ID."""
-    try:
-        order_details = get_order_details(order_id)
-        return jsonify({"data": order_details})
-    except Exception as e:
-        logger.error(f"Order details retrieval failed: {e}")
-        return jsonify({
-            "status": "error", 
-            "message": str(e)
-        }), 500
-
-
 @app.route("/order", methods=["POST"])
-@limiter.limit("10 per minute")
-@require_api_key
 def place_order():
     """Place a single order."""
     client = get_ibkr_client()
@@ -332,7 +247,7 @@ def place_order():
     # Create order request
     order_tag = data.get(
         "order_tag", 
-        f'order-{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
+        f'auto-{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
     )
 
     order_request = make_order_request(
@@ -346,19 +261,18 @@ def place_order():
         tif=tif,
     )
 
-    # Define standard answers
+    # Define standard answers for IBKR prompts
     answers = {
         QuestionType.PRICE_PERCENTAGE_CONSTRAINT: True,
         QuestionType.ORDER_VALUE_LIMIT: True,
         QuestionType.STOP_ORDER_RISKS: True,
         "Unforeseen new question": True,
-        "<h4>Confirm Mandatory Cap Price</h4>To avoid trading at a price that is not consistent with a fair and orderly market, IB may set a cap (for a buy order) or floor (for a sell order). THIS MAY CAUSE AN ORDER THAT WOULD OTHERWISE BE MARKETABLE NOT TO BE TRADED.": True,
         "Market Order Confirmation": True,
-        "You are submitting an order without market data. We strongly recommend against this as it may result in erroneous and unexpected trades.Are you sure you want to submit this order?": True,
     }
 
     try:
         response = client.place_order(order_request, answers).data
+        logger.info(f"Order placed successfully: {order_tag}")
         return jsonify({
             "status": "ok", 
             "environment": TRADING_ENV, 
@@ -373,11 +287,9 @@ def place_order():
         }), 500
 
 
-@app.route("/order/<order_id>", methods=["DELETE"])
-@limiter.limit("10 per minute")
-@require_api_key
-def cancel_order(order_id):
-    """Cancel a specific order by its ID."""
+@app.route("/order/symbol", methods=["POST"])
+def place_order_by_symbol():
+    """Place an order using symbol (automatically resolves to contract ID)."""
     client = get_ibkr_client()
     if not client:
         return jsonify({
@@ -385,130 +297,104 @@ def cancel_order(order_id):
             "message": "IBKR client not available."
         }), 500
 
-    try:
-        response = client.cancel_order(order_id).data
+    # Ensure account ID is set
+    if not client.account_id:
+        accounts = client.portfolio_accounts().data
+        if accounts and len(accounts) > 0:
+            client.account_id = accounts[0]["accountId"]
+        else:
+            return jsonify({
+                "status": "error", 
+                "message": "No account ID available"
+            }), 400
+
+    data = request.json
+
+    # Validate required fields
+    required_fields = ["symbol", "side", "quantity", "order_type"]
+    missing_fields = [field for field in required_fields if field not in data]
+    if missing_fields:
         return jsonify({
-            "status": "ok", 
-            "environment": TRADING_ENV, 
+            "status": "error",
+            "message": f"Missing required fields: {', '.join(missing_fields)}"
+        }), 400
+
+    symbol = data["symbol"].upper()
+    side = data["side"].upper()
+    quantity = int(data["quantity"])
+    order_type = data["order_type"].upper()
+
+    # Validate values
+    if side not in ["BUY", "SELL"]:
+        return jsonify({
+            "status": "error", 
+            "message": "Invalid side. Must be 'BUY' or 'SELL'"
+        }), 400
+
+    if order_type not in ["LMT", "MKT"]:
+        return jsonify({
+            "status": "error",
+            "message": "Invalid order type. Must be 'LMT' or 'MKT'"
+        }), 400
+
+    try:
+        # Resolve symbol to contract ID
+        conid = resolve_symbol_to_conid(client, symbol)
+        logger.info(f"Resolved {symbol} to conid: {conid}")
+
+        # Create order request
+        order_tag = f'auto-{symbol}-{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
+
+        order_request = make_order_request(
+            conid=int(conid),
+            side=side,
+            quantity=quantity,
+            order_type=order_type,
+            price=(round(float(data["limit_price"]), 2) if order_type == "LMT" and "limit_price" in data else None),
+            acct_id=client.account_id,
+            coid=order_tag,
+            tif=data.get("tif", "DAY"),
+        )
+
+        # Define standard answers
+        answers = {
+            QuestionType.PRICE_PERCENTAGE_CONSTRAINT: True,
+            QuestionType.ORDER_VALUE_LIMIT: True,
+            QuestionType.STOP_ORDER_RISKS: True,
+            "Unforeseen new question": True,
+            "Market Order Confirmation": True,
+        }
+
+        response = client.place_order(order_request, answers).data
+        
+        return jsonify({
+            "status": "success", 
+            "message": f"Order placed successfully for {quantity} shares of {symbol}",
+            "order_tag": order_tag,
+            "symbol": symbol,
+            "side": side,
+            "quantity": quantity,
+            "order_type": order_type,
             "data": response
         })
+        
+    except SymbolResolutionError as e:
+        logger.error(f"Symbol resolution failed for {symbol}: {e}")
+        return jsonify({
+            "status": "error", 
+            "message": f"Could not resolve symbol {symbol}: {str(e)}"
+        }), 400
     except Exception as e:
-        logger.error(f"Order cancellation failed: {e}")
+        logger.error(f"Order placement failed for {symbol}: {e}")
         return jsonify({
             "status": "error", 
-            "message": str(e)
+            "message": f"Order placement failed: {str(e)}"
         }), 500
 
 
-@app.route("/orders/bulk", methods=["POST"])
-@limiter.limit("10 per minute")
-@require_api_key
-def place_bulk_orders():
-    """Place multiple orders in a single request."""
-    client = get_ibkr_client()
-    if not client or not client.account_id:
-        return jsonify({
-            "status": "error", 
-            "message": "IBKR client not available."
-        }), 500
-
-    data = request.get_json()
-    if not data or 'orders' not in data or not isinstance(data['orders'], list):
-        return jsonify({
-            "status": "error", 
-            "message": "Invalid bulk order format."
-        }), 400
-
-    answers = {
-        QuestionType.PRICE_PERCENTAGE_CONSTRAINT: True,
-        QuestionType.ORDER_VALUE_LIMIT: True,
-        QuestionType.STOP_ORDER_RISKS: True,
-        "Unforeseen new question": True,
-        "<h4>Confirm Mandatory Cap Price</h4>To avoid trading at a price that is not consistent with a fair and orderly market, IB may set a cap (for a buy order) or floor (for a sell order). THIS MAY CAUSE AN ORDER THAT WOULD OTHERWISE BE MARKETABLE NOT TO BE TRADED.": True,
-        "Market Order Confirmation": True,
-        "You are submitting an order without market data. We strongly recommend against this. For more information, see the Order Ticket page in the Learning Center on our website. Are you sure you want to submit this order?": True
-    }
-    
-    responses = []
-    errors = []
-    
-    for order_data in data['orders']:
-        try:
-            order_request = make_order_request(
-                conid=order_data['conid'],
-                side=order_data['side'],
-                quantity=order_data['quantity'],
-                order_type=order_data['order_type'],
-                price=order_data.get('price'),
-                tif=order_data.get('tif', 'DAY'),
-                acct_id=client.account_id,
-                coid=f'bulk-trade-{uuid.uuid4()}'
-            )
-            
-            response = client.place_order(order_request, answers=answers).data
-            responses.append(response)
-            
-            # Small delay between orders
-            import time
-            time.sleep(0.1)
-
-        except Exception as e:
-            logger.error(f"Error processing an order in bulk: {e}")
-            errors.append({"order": order_data, "error": str(e)})
-
-    if errors:
-        return jsonify({
-            "status": "partial_success", 
-            "successful_orders": responses, 
-            "failed_orders": errors
-        }), 207
-    
-    return jsonify({"status": "ok", "data": responses})
-
-
-# ======================
-# MARKET DATA ENDPOINTS
-# ======================
-
-@app.route("/marketdata", methods=["GET"])
-@limiter.limit("60 per minute")
-@require_api_key
-def get_marketdata():
-    """Get market data for given contract IDs."""
-    conids_str = request.args.get("conids")
-    if not conids_str:
-        return jsonify({
-            "status": "error", 
-            "message": "Missing 'conids' parameter"
-        }), 400
-
-    # Sanitize and split the conids string
-    conid_list = [c.strip() for c in conids_str.split(',') if c.strip().isdigit()]
-    if not conid_list:
-        return jsonify({
-            "status": "error", 
-            "message": "Invalid or empty 'conids' parameter"
-        }), 400
-
-    try:
-        snapshot_data = get_market_data_for_conids(conid_list)
-        return jsonify({"status": "ok", "data": snapshot_data})
-    except MarketDataError as e:
-        return jsonify({
-            "status": "error", 
-            "message": str(e)
-        }), 500
-
-
-# ==========================
-# PERCENTAGE ORDER ENDPOINT
-# ==========================
-
-@app.route("/percentage-limit-order/<symbol>", methods=["POST"])
-@limiter.limit("10 per minute")
-@require_api_key
+@app.route("/percentage-order/<symbol>", methods=["POST"])
 def percentage_limit_order(symbol):
-    """Place a limit order for a percentage of the account value."""
+    """Place a limit order for a percentage of account value or position."""
     data = request.json
     side = data.get("side", "SELL").upper()
     time_in_force = data.get("time_in_force", "GTC")
@@ -545,13 +431,10 @@ def percentage_limit_order(symbol):
             percentage_of_position = float(data.get("percentage_of_position", 0))
             quantity = calculate_sell_quantity(position, percentage_of_position, symbol)
         else:  # BUY
-            # Support both new percentage-based and legacy dollar-based approaches
             if "percentage_of_buying_power" in data:
-                # New consistent percentage-based approach
                 from .account_operations import get_complete_account_data
                 account_data = get_complete_account_data()
                 
-                # Get buying power from account ledger
                 ledger = account_data.get("ledger", {})
                 buying_power = float(ledger.get("BuyingPower", ledger.get("AvailableFunds", 0)))
                 
@@ -566,7 +449,6 @@ def percentage_limit_order(symbol):
                     buying_power, percentage_of_buying_power, limit_price, symbol
                 )
             else:
-                # Legacy dollar-based approach (for backward compatibility)
                 dollar_amount = float(data.get("dollar_amount", 0))
                 quantity = calculate_buy_quantity(dollar_amount, limit_price)
 
@@ -594,162 +476,35 @@ def percentage_limit_order(symbol):
         }), 500
 
 
-# ===================
-# POSITION ENDPOINTS
-# ===================
+# ======================
+# MARKET DATA ENDPOINTS
+# ======================
 
-@app.route("/positions/csv", methods=["GET"])
-@limiter.limit("10 per minute")
-@require_api_key
-def get_positions_csv():
-    """Returns a CSV file of all positions."""
+@app.route("/marketdata", methods=["GET"])
+def get_marketdata():
+    """Get market data for given contract IDs."""
+    conids_str = request.args.get("conids")
+    if not conids_str:
+        return jsonify({
+            "status": "error", 
+            "message": "Missing 'conids' parameter"
+        }), 400
+
+    # Sanitize and split the conids string
+    conid_list = [c.strip() for c in conids_str.split(',') if c.strip().isdigit()]
+    if not conid_list:
+        return jsonify({
+            "status": "error", 
+            "message": "Invalid or empty 'conids' parameter"
+        }), 400
+
     try:
-        return generate_positions_csv()
-    except Exception as e:
-        logger.error(f"CSV export failed: {e}")
+        snapshot_data = get_market_data_for_conids(conid_list)
+        return jsonify({"status": "ok", "data": snapshot_data})
+    except MarketDataError as e:
         return jsonify({
             "status": "error", 
             "message": str(e)
-        }), 500
-
-
-@app.route("/positions", methods=["GET"])
-@limiter.limit("20 per minute")
-@require_api_key
-def get_positions():
-    """Returns positions in JSON format with optional limit."""
-    limit = request.args.get("limit", 10, type=int)
-    
-    try:
-        positions_data = get_positions_with_limit(limit)
-        return jsonify({
-            "status": "ok",
-            "environment": TRADING_ENV,
-            **positions_data
-        })
-    except Exception as e:
-        logger.error(f"Positions retrieval failed: {e}")
-        return jsonify({
-            "status": "error", 
-            "message": str(e)
-        }), 500
-
-
-# =======================
-# SIMPLE ORDER ENDPOINT
-# =======================
-
-@app.route("/api/place_order", methods=["POST"])
-@limiter.limit("20 per minute")
-@require_api_key
-def place_simple_order():
-    """Place a simple order using symbol (requires API key authentication)."""
-    client = get_ibkr_client()
-    if not client:
-        return jsonify({
-            "status": "error", 
-            "message": "IBKR client not available."
-        }), 500
-
-    # Ensure account ID is set
-    if not client.account_id:
-        accounts = client.portfolio_accounts().data
-        if accounts and len(accounts) > 0:
-            client.account_id = accounts[0]["accountId"]
-        else:
-            return jsonify({
-                "status": "error", 
-                "message": "No account ID available"
-            }), 400
-
-    data = request.json
-
-    # Validate required fields
-    required_fields = ["symbol", "action", "quantity", "order_type"]
-    missing_fields = [field for field in required_fields if field not in data]
-    if missing_fields:
-        return jsonify({
-            "status": "error",
-            "message": f"Missing required fields: {', '.join(missing_fields)}"
-        }), 400
-
-    symbol = data["symbol"].upper()
-    action = data["action"].upper()
-    quantity = int(data["quantity"])
-    order_type = data["order_type"].upper()
-
-    # Validate values
-    if action not in ["BUY", "SELL"]:
-        return jsonify({
-            "status": "error", 
-            "message": "Invalid action. Must be 'BUY' or 'SELL'"
-        }), 400
-
-    if order_type not in ["LMT", "MKT"]:
-        return jsonify({
-            "status": "error",
-            "message": "Invalid order type. Must be 'LMT' or 'MKT'"
-        }), 400
-
-    try:
-        # Resolve symbol to contract ID
-        logger.info(f"Resolving symbol {symbol} to contract ID")
-        conid = resolve_symbol_to_conid(client, symbol)
-        logger.info(f"Resolved {symbol} to conid: {conid}")
-
-        # Create order request
-        order_tag = f'simple-{symbol}-{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
-
-        order_request = make_order_request(
-            conid=int(conid),
-            side=action,
-            quantity=quantity,
-            order_type=order_type,
-            price=(round(float(data["limit_price"]), 2) if order_type == "LMT" and "limit_price" in data else None),
-            acct_id=client.account_id,
-            coid=order_tag,
-            tif="DAY",
-        )
-        if order_type == "LMT" and "limit_price" in data:
-            logger.info(f"Setting limit price to ${round(float(data['limit_price']), 2)}")
-
-        # Define standard answers
-        answers = {
-            QuestionType.PRICE_PERCENTAGE_CONSTRAINT: True,
-            QuestionType.ORDER_VALUE_LIMIT: True,
-            QuestionType.STOP_ORDER_RISKS: True,
-            "Unforeseen new question": True,
-            "<h4>Confirm Mandatory Cap Price</h4>To avoid trading at a price that is not consistent with a fair and orderly market, IB may set a cap (for a buy order) or floor (for a sell order). THIS MAY CAUSE AN ORDER THAT WOULD OTHERWISE BE MARKETABLE NOT TO BE TRADED.": True,
-            "Market Order Confirmation": True,
-            "You are submitting an order without market data. We strongly recommend against this as it may result in erroneous and unexpected trades.Are you sure you want to submit this order?": True,
-        }
-
-        logger.info(f"Placing order for {quantity} shares of {symbol} ({action}) at ${order_request.price if hasattr(order_request, 'price') else 'market'}")
-        response = client.place_order(order_request, answers).data
-        
-        return jsonify({
-            "status": "success", 
-            "message": f"Order placed successfully for {quantity} shares of {symbol}",
-            "order_id": response.get("order_id") if response else None,
-            "order_tag": order_tag,
-            "symbol": symbol,
-            "action": action,
-            "quantity": quantity,
-            "order_type": order_type,
-            "data": response
-        })
-        
-    except SymbolResolutionError as e:
-        logger.error(f"Symbol resolution failed for {symbol}: {e}")
-        return jsonify({
-            "status": "error", 
-            "message": f"Could not resolve symbol {symbol}: {str(e)}"
-        }), 400
-    except Exception as e:
-        logger.error(f"Order placement failed for {symbol}: {e}")
-        return jsonify({
-            "status": "error", 
-            "message": f"Order placement failed: {str(e)}"
         }), 500
 
 
@@ -758,12 +513,9 @@ def place_simple_order():
 # ===================
 
 if __name__ == "__main__":
-    # Initialize background health monitor
-    start_health_monitor()
-    
-    # Run the app
+    # Run the app (minimal setup for local use)
     app.run(
-        debug=True, 
+        debug=False,  # Turn off debug for automation
         port=int(os.environ.get("PORT", 8080)), 
-        host="0.0.0.0"
+        host="127.0.0.1"  # Only listen on localhost
     )

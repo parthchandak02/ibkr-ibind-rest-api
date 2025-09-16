@@ -61,8 +61,8 @@ def main():
         if not validate_oauth_files(args.env):
             raise FileNotFoundError("Required OAuth files are missing")
         
-        # Import and run the Flask app
-        from backend.api import app
+        # Import and run the simplified Flask app
+        from backend.api_simplified import app
         
         # Set port
         port = args.port or int(os.environ.get("PORT", 8080))
