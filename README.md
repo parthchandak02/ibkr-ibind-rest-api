@@ -8,15 +8,11 @@ Lightweight REST API for Interactive Brokers trading with auto-generated documen
 # 1. Install dependencies
 uv sync
 
-# 2. Start backend API
+# 2. Start API server
 uv run python run_server.py
-
-# 3. Start frontend (optional)
-cd frontend && npm run dev
 ```
 
-**API Server**: http://localhost:8080  
-**Frontend**: http://localhost:4321
+**API Server**: http://localhost:8080
 
 ## 📚 API Documentation
 
@@ -51,10 +47,10 @@ curl -H "X-API-Key: YOUR_KEY" http://localhost:8080/health
 ## 📱 Features
 
 - **Real-time trading** with 147+ positions
-- **Percentage-based orders** (consistent BUY/SELL API)
+- **Percentage-based orders** (consistent BUY/SELL API)  
 - **Extended hours trading** support
-- **Modern web interface** with interactive tables
 - **Auto-updating docs** - never out of sync
+- **Comprehensive API endpoints** for all trading operations
 
 ## 🛠️ Configuration
 
