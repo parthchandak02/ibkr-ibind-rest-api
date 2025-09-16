@@ -3,12 +3,8 @@ import { defineConfig } from 'astro/config';
 
 // https://astro.build/config
 export default defineConfig({
-  // Set the site URL for GitHub Pages
-  site: 'https://parthchandak02.github.io',
-  
-  // Only set base path in production for GitHub Pages
-  // In development, we want clean URLs without the base path
-  base: process.env.NODE_ENV === 'production' ? '/ibkr-ibind-rest-api' : undefined,
+  // Local development configuration
+  site: 'http://localhost:4321',
   
   // Build configuration for static deployment
   output: 'static',

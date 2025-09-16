@@ -213,6 +213,8 @@ def calculate_sell_quantity(
 def calculate_buy_quantity(dollar_amount: float, limit_price: float) -> int:
     """
     Calculate quantity to buy based on dollar amount and limit price.
+    
+    DEPRECATED: Use calculate_buy_quantity_from_percentage for consistency.
 
     Args:
         dollar_amount: Amount in USD to spend
@@ -227,11 +229,55 @@ def calculate_buy_quantity(dollar_amount: float, limit_price: float) -> int:
     if dollar_amount <= 0:
         raise ValueError("Dollar amount must be greater than 0 for BUY orders")
 
-    # Calculate quantity based on dollar amount and limit price (round up)
+    # Calculate quantity based on dollar amount and limit price (round down for conservatism)
     quantity_float = dollar_amount / limit_price
-    quantity = max(1, int(quantity_float + 0.99))  # Round up to nearest integer
+    quantity = max(1, int(quantity_float))  # Round down to be conservative
 
     logger.info(f"Calculated buy quantity {quantity} from ${dollar_amount} at ${limit_price}")
+    return quantity
+
+
+def calculate_buy_quantity_from_percentage(
+    buying_power: float, 
+    percentage_of_buying_power: float, 
+    limit_price: float, 
+    symbol: str
+) -> int:
+    """
+    Calculate BUY quantity based on percentage of buying power.
+    
+    This provides consistent percentage-based position sizing for BUY orders,
+    similar to how SELL orders use percentage_of_position.
+
+    Args:
+        buying_power: Available buying power from account
+        percentage_of_buying_power: Percentage to allocate (1-100%)
+        limit_price: Calculated limit price per share
+        symbol: Symbol for error messages
+
+    Returns:
+        int: Quantity to buy
+
+    Raises:
+        ValueError: If percentage is invalid
+    """
+    if percentage_of_buying_power <= 0 or percentage_of_buying_power > 100:
+        raise ValueError(f"percentage_of_buying_power must be between 0 and 100, got {percentage_of_buying_power}")
+    
+    if buying_power <= 0:
+        raise ValueError(f"buying_power must be greater than 0, got {buying_power}")
+
+    # Calculate dollar amount to spend
+    target_amount = buying_power * (percentage_of_buying_power / 100)
+    
+    # Calculate quantity (round down to be conservative with buying power)
+    quantity_float = target_amount / limit_price
+    quantity = max(1, int(quantity_float))  # At least 1 share, round down
+    
+    logger.info(
+        f"Calculated buy quantity {quantity} for {symbol} from {percentage_of_buying_power}% "
+        f"of buying power ${buying_power:,.2f} = ${target_amount:,.2f} at ${limit_price:.2f}"
+    )
     return quantity
 
 
@@ -326,12 +372,29 @@ def validate_percentage_order_request(data: Dict[str, Any], side: str) -> None:
             raise ValueError("percentage_of_position must be between 0 and 100")
 
     elif side == "BUY":
-        if "dollar_amount" not in data:
-            raise ValueError("dollar_amount is required for BUY orders")
+        # Support both new percentage-based and legacy dollar-based approaches
+        has_percentage = "percentage_of_buying_power" in data
+        has_dollar_amount = "dollar_amount" in data
+        
+        if not has_percentage and not has_dollar_amount:
+            raise ValueError(
+                "Either 'percentage_of_buying_power' (recommended) or 'dollar_amount' (legacy) is required for BUY orders"
+            )
+        
+        if has_percentage and has_dollar_amount:
+            raise ValueError(
+                "Cannot specify both 'percentage_of_buying_power' and 'dollar_amount'. Use 'percentage_of_buying_power' for consistent API."
+            )
 
-        dollar_amount = float(data.get("dollar_amount", 0))
-        if dollar_amount <= 0:
-            raise ValueError("dollar_amount must be greater than 0")
+        if has_percentage:
+            percentage_of_buying_power = float(data.get("percentage_of_buying_power", 0))
+            if percentage_of_buying_power <= 0 or percentage_of_buying_power > 100:
+                raise ValueError("percentage_of_buying_power must be between 0 and 100")
+        
+        if has_dollar_amount:
+            dollar_amount = float(data.get("dollar_amount", 0))
+            if dollar_amount <= 0:
+                raise ValueError("dollar_amount must be greater than 0")
 
 
 def cleanup_client_connection(client: Optional[IbkrClient]) -> None:

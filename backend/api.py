@@ -41,16 +41,19 @@ from .trading_operations import (
     find_position_by_symbol,
     calculate_sell_quantity,
     calculate_buy_quantity,
+    calculate_buy_quantity_from_percentage,
     place_percentage_order,
     validate_percentage_order_request,
     SymbolResolutionError,
     PositionNotFoundError
 )
 
-# Add GitHub API integration
 import requests
 import json
 # Removed conflicting import - using datetime module import instead
+
+# Add OpenAPI documentation
+from .openapi_docs import add_openapi_routes
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -79,6 +82,9 @@ VALID_TIME_IN_FORCE = ["DAY", "GTC", "IOC", "FOK"]
 
 # Defer IBKR client initialization to runtime usage/startup hooks
 logger.info(f"IBKR client will initialize lazily for environment: {TRADING_ENV}")
+
+# Add OpenAPI documentation routes
+add_openapi_routes(app)
 
 
 # ========================
@@ -539,8 +545,30 @@ def percentage_limit_order(symbol):
             percentage_of_position = float(data.get("percentage_of_position", 0))
             quantity = calculate_sell_quantity(position, percentage_of_position, symbol)
         else:  # BUY
-            dollar_amount = float(data.get("dollar_amount", 0))
-            quantity = calculate_buy_quantity(dollar_amount, limit_price)
+            # Support both new percentage-based and legacy dollar-based approaches
+            if "percentage_of_buying_power" in data:
+                # New consistent percentage-based approach
+                from .account_operations import get_complete_account_data
+                account_data = get_complete_account_data()
+                
+                # Get buying power from account ledger
+                ledger = account_data.get("ledger", {})
+                buying_power = float(ledger.get("BuyingPower", ledger.get("AvailableFunds", 0)))
+                
+                if buying_power <= 0:
+                    return jsonify({
+                        "status": "error",
+                        "message": f"No buying power available. Current buying power: ${buying_power}"
+                    }), 400
+                
+                percentage_of_buying_power = float(data.get("percentage_of_buying_power", 0))
+                quantity = calculate_buy_quantity_from_percentage(
+                    buying_power, percentage_of_buying_power, limit_price, symbol
+                )
+            else:
+                # Legacy dollar-based approach (for backward compatibility)
+                dollar_amount = float(data.get("dollar_amount", 0))
+                quantity = calculate_buy_quantity(dollar_amount, limit_price)
 
         # Place the order
         result = place_percentage_order(
@@ -724,191 +752,6 @@ def place_simple_order():
             "message": f"Order placement failed: {str(e)}"
         }), 500
 
-
-# ===================
-# GITHUB WORKFLOW INTEGRATION
-# ===================
-
-@app.route('/trigger-workflow', methods=['POST'])
-@limiter.limit("5 per minute")
-@require_api_key
-def trigger_github_workflow():
-    """
-    Secure endpoint to trigger GitHub Actions workflow via repository_dispatch.
-    Frontend sends trading parameters, backend validates and triggers GitHub workflow.
-    """
-    try:
-        # Get GitHub configuration from environment or config file
-        github_token = os.getenv('GITHUB_TOKEN')
-        repo_owner = os.getenv('GITHUB_REPO_OWNER')
-        repo_name = os.getenv('GITHUB_REPO_NAME')
-        
-        # Fallback to config.json if environment variables not set
-        if not github_token or not repo_owner or not repo_name:
-            try:
-                with open('config.json', 'r') as f:
-                    config = json.load(f)
-                    github_config = config.get('github', {})
-                    
-                    github_token = github_token or github_config.get('token')
-                    repo_owner = repo_owner or github_config.get('repo_owner', 'parthchandak02')
-                    repo_name = repo_name or github_config.get('repo_name', 'ibkr-ibind-rest-api')
-            except Exception as e:
-                logger.warning(f"Could not read GitHub config from config.json: {e}")
-        
-        if not github_token:
-            logger.error("GitHub token not configured")
-            return jsonify({
-                "status": "error",
-                "message": "GitHub integration not configured"
-            }), 500
-        
-        # Validate request data
-        data = request.get_json()
-        if not data:
-            return jsonify({
-                "status": "error",
-                "message": "Request body is required"
-            }), 400
-        
-        # Extract and validate trading parameters
-        symbol = data.get('symbol', 'AAPL').upper()
-        action = data.get('action', 'BUY').upper()
-        quantity = data.get('quantity', 1)
-        limit_price = data.get('limit_price', 20.00)
-        
-        # Validate parameters
-        if action not in ['BUY', 'SELL']:
-            return jsonify({
-                "status": "error",
-                "message": "Action must be BUY or SELL"
-            }), 400
-        
-        try:
-            quantity = int(quantity)
-            limit_price = float(limit_price)
-            if quantity <= 0 or limit_price <= 0:
-                raise ValueError("Values must be positive")
-        except (ValueError, TypeError):
-            return jsonify({
-                "status": "error",
-                "message": "Quantity must be positive integer, limit_price must be positive number"
-            }), 400
-        
-        # Prepare GitHub repository dispatch payload
-        dispatch_payload = {
-            "event_type": "trade_trigger",
-            "client_payload": {
-                "symbol": symbol,
-                "action": action,
-                "quantity": quantity,
-                "limit_price": limit_price,
-                "triggered_by": "frontend_api",
-                "timestamp": datetime.datetime.utcnow().isoformat(),
-                "source_ip": request.remote_addr
-            }
-        }
-        
-        # GitHub API endpoint
-        github_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/dispatches"
-        
-        # Headers for GitHub API
-        headers = {
-            "Authorization": f"Bearer {github_token}",
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-            "Content-Type": "application/json"
-        }
-        
-        logger.info(f"Triggering GitHub workflow: {symbol} {action} {quantity} @ ${limit_price}")
-        
-        # Make request to GitHub API
-        response = requests.post(
-            github_url, 
-            headers=headers, 
-            json=dispatch_payload,
-            timeout=10
-        )
-        
-        if response.status_code == 204:
-            # Success - GitHub repository_dispatch returns 204 No Content
-            logger.info(f"Successfully triggered GitHub workflow for {symbol} {action}")
-            return jsonify({
-                "status": "success",
-                "message": "Workflow triggered successfully",
-                "workflow_params": {
-                    "symbol": symbol,
-                    "action": action,
-                    "quantity": quantity,
-                    "limit_price": limit_price
-                },
-                "triggered_at": dispatch_payload["client_payload"]["timestamp"]
-            })
-        else:
-            # GitHub API error
-            error_msg = response.text if response.text else f"HTTP {response.status_code}"
-            logger.error(f"GitHub API error: {response.status_code} - {error_msg}")
-            return jsonify({
-                "status": "error",
-                "message": f"Failed to trigger workflow: {error_msg}"
-            }), 502
-            
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Network error triggering GitHub workflow: {e}")
-        return jsonify({
-            "status": "error",
-            "message": "Network error communicating with GitHub"
-        }), 502
-    except Exception as e:
-        logger.error(f"Unexpected error triggering GitHub workflow: {e}")
-        return jsonify({
-            "status": "error",
-            "message": "Internal server error"
-        }), 500
-
-
-# ===================
-# COMPREHENSIVE API INTEGRATION
-# ===================
-
-# Import comprehensive API router
-from .comprehensive_api import handle_comprehensive_request
-
-
-@app.route("/api/comprehensive-execute", methods=["POST"])
-@require_api_key
-def comprehensive_execute():
-    """
-    🚀 Comprehensive API endpoint for GitHub Actions integration.
-    
-    This unified endpoint can handle ANY backend operation:
-    - Trading operations (buy, sell, rebalance)
-    - Portfolio management (view, export)
-    - Order management (view, cancel, history)
-    - Market data (quotes, prices, history)
-    - Account operations (info, positions)
-    - Data export (CSV, JSON, Excel)
-    
-    Expected JSON payload:
-    {
-        "operation_type": "trading|portfolio|orders|market_data|account|data_export",
-        "action": "operation-specific action",
-        "symbol": "AAPL",
-        "quantity": "1",
-        "dry_run": true,
-        "environment": "paper|live"
-    }
-    """
-    return handle_comprehensive_request()
-
-
-# ===================
-# CLI COMMANDS REGISTRATION
-# ===================
-
-# Register CLI commands with Flask
-from .cli import register_cli_commands
-register_cli_commands(app)
 
 # ===================
 # APP INITIALIZATION
