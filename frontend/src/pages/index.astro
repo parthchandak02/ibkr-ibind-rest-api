@@ -1,235 +1,2693 @@
 ---
-// Modern Astro page using component-based architecture
+// Modern IBKR Trading Interface - 2025 Design Standards
 import BaseLayout from '../layouts/BaseLayout.astro';
-import TradingHeader from '../components/TradingHeader.astro';
-import SecurityNotice from '../components/SecurityNotice.astro';
-import GitHubActionsSection from '../components/GitHubActionsSection.astro';
-import StatusSection from '../components/StatusSection.astro';
+
+// Test API connectivity on page load (server-side)
+const API_BASE = 'http://localhost:8080';
+const API_KEY = 'SreVG34QqCb4yu64iesQSnmql8VLZ1FIS2ySzxrudNg';
+
+let serverHealth = null;
+try {
+  const response = await fetch(`${API_BASE}/health`, {
+    headers: { 'X-API-Key': API_KEY }
+  });
+  serverHealth = {
+    status: response.status,
+    data: response.ok ? await response.json() : await response.text()
+  };
+} catch (error) {
+  serverHealth = { status: 'error', data: (error as Error).message };
+}
 ---
 
-<BaseLayout title="Trading Terminal - Secure Execution">
-  <div class="trading-container">
-    <TradingHeader />
-    <StatusSection />
-    <SecurityNotice />
-    <GitHubActionsSection />
-    
-    <!-- Trading Information Card -->
-    <div class="trading-info-card">
-      <div class="info-header">
-        <div class="info-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-          </svg>
-        </div>
-        <h3 class="info-title">Test Trade Configuration</h3>
-      </div>
-      
-      <div class="trade-params">
-        <div class="param-grid">
-          <div class="param-item">
-            <span class="param-label">Symbol</span>
-            <span class="param-value symbol">AAPL</span>
+<BaseLayout title="IBKR Trading Terminal">
+  <main class="trading-app">
+    <!-- Navigation Header -->
+    <nav class="app-header">
+      <div class="header-content">
+        <div class="brand">
+          <div class="brand-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+            </svg>
           </div>
-          <div class="param-item">
-            <span class="param-label">Action</span>
-            <span class="param-value action">BUY</span>
-          </div>
-          <div class="param-item">
-            <span class="param-label">Quantity</span>
-            <span class="param-value">1 share</span>
-          </div>
-          <div class="param-item">
-            <span class="param-label">Limit Price</span>
-            <span class="param-value price">$20.00</span>
-          </div>
-          <div class="param-item">
-            <span class="param-label">Order Type</span>
-            <span class="param-value">Limit</span>
-          </div>
-          <div class="param-item">
-            <span class="param-label">Time in Force</span>
-            <span class="param-value">DAY</span>
+          <div class="brand-text">
+            <h1 class="brand-title">IBKR Terminal</h1>
+            <span class="brand-subtitle">Trading API v2.1</span>
           </div>
         </div>
         
-        <div class="trade-note">
-          <div class="note-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M12 16v-4M12 8h.01"/>
-            </svg>
+        <div class="header-actions">
+          <div class="system-status">
+            <div class={`status-dot ${serverHealth?.status === 200 && serverHealth?.data?.ibkr_connected ? 'status-online' : 'status-offline'}`}></div>
+            <span class="status-text">
+              {serverHealth?.status === 200 && serverHealth?.data?.ibkr_connected ? 'Connected' : 'Disconnected'}
+            </span>
           </div>
-          <p class="note-text">
-            This is a test order with a very low limit price ($20.00) that will likely not execute.
-            It's designed for testing the trading workflow safely.
-          </p>
+          <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+            <svg class="sun-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="5"/>
+              <path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+            </svg>
+            <svg class="moon-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+          </svg>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Dashboard Grid -->
+    <div class="dashboard-grid">
+      <!-- API Connectivity Panel -->
+      <section class="panel connectivity-panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg class="panel-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+            API Connectivity
+          </div>
+          <div class="panel-badge">Live</div>
+        </div>
+        
+        <div class="connectivity-grid">
+          <!-- Health Status -->
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-label">Health</span>
+              <div class={`metric-status ${serverHealth?.status === 200 ? 'status-success' : 'status-error'}`}>
+                {serverHealth?.status === 200 ? 'Healthy' : 'Error'}
+              </div>
+            </div>
+            <div class="metric-value" id="health-result">
+              {serverHealth?.status === 200 ? 
+                `✓ IBKR Connected` : 
+                `✗ Connection Failed`
+              }
+            </div>
+            <button class="metric-action" data-test="health">Refresh</button>
+          </div>
+
+          <!-- Account Status -->
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-label">Account</span>
+              <div class="metric-status status-pending">Pending</div>
+            </div>
+            <div class="metric-value" id="account-result">Click to verify</div>
+            <button class="metric-action" data-test="account">Check Account</button>
+          </div>
+
+          <!-- Portfolio Status -->
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-label">Portfolio</span>
+              <div class="metric-status status-pending">Pending</div>
+            </div>
+            <div class="metric-value" id="positions-result">Click to load</div>
+            <button class="metric-action" data-test="positions">Load Positions</button>
+          </div>
+
+          <!-- Symbol Lookup -->
+          <div class="metric-card symbol-lookup">
+            <div class="metric-header">
+              <span class="metric-label">Symbol Lookup</span>
+            </div>
+            <div class="lookup-input">
+              <input type="text" id="symbol-input" placeholder="Enter symbol (e.g., AAPL)" value="AAPL" class="symbol-input" />
+          </div>
+            <div class="metric-value" id="symbol-result">Ready to resolve</div>
+            <button class="metric-action primary" data-test="symbol">Resolve</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Trading Panel -->
+      <section class="panel trading-panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg class="panel-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+            Quick Trade
+        </div>
+          <div class="panel-badge warning">Beta</div>
+      </div>
+      
+        <div class="trade-form">
+          <div class="form-row">
+            <div class="form-field">
+              <label class="field-label">Symbol</label>
+              <input type="text" id="trade-symbol" class="field-input" placeholder="AAPL" />
+          </div>
+            <div class="form-field">
+              <label class="field-label">Action</label>
+              <select id="trade-action" class="field-select">
+                <option value="BUY">Buy</option>
+                <option value="SELL">Sell</option>
+              </select>
+          </div>
+          </div>
+  
+          <div class="form-row">
+            <div class="form-field">
+              <label class="field-label">Quantity</label>
+              <input type="number" id="trade-quantity" class="field-input" placeholder="1" min="1" />
+          </div>
+            <div class="form-field">
+              <label class="field-label">Order Type</label>
+              <select id="trade-type" class="field-select">
+                <option value="MKT">Market</option>
+                <option value="LMT">Limit</option>
+              </select>
+          </div>
+          </div>
+          
+          <div class="form-field limit-price-field" id="limit-price-group" style="display: none;">
+            <label class="field-label">Limit Price</label>
+            <div class="price-input">
+              <span class="currency-symbol">$</span>
+              <input type="number" id="limit-price" class="field-input" placeholder="0.00" step="0.01" />
+          </div>
+        </div>
+        
+          <div class="form-actions">
+            <button class="btn btn-secondary" id="preview-order">Preview Order</button>
+            <button class="btn btn-primary" id="place-order" disabled>Place Order</button>
+          </div>
+          
+          <div class="order-preview" id="order-preview" style="display: none;"></div>
+        </div>
+      </section>
+    </div>
+    
+    <!-- Positions Table Section -->
+    <section class="positions-section" id="positions-section" style="display: none;">
+      <div class="positions-container">
+        <div class="positions-header">
+          <div class="positions-title">
+            <h2>Portfolio Positions</h2>
+            <span class="positions-count" id="positions-count">0 positions</span>
+          </div>
+          
+          <div class="positions-controls">
+            <div class="search-box">
+              <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="m21 21-4.35-4.35"/>
+            </svg>
+              <input type="text" id="positions-search" placeholder="Search positions..." class="search-input" />
+          </div>
+            
+            <select id="sector-filter" class="filter-select">
+              <option value="">All Sectors</option>
+            </select>
+            
+            <div class="bulk-actions">
+              <button id="select-all" class="btn btn-secondary">Select All</button>
+              <button id="execute-orders-btn" class="btn btn-primary execute-btn" disabled>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="5 4 15 12 5 20 5 4"/>
+            </svg>
+                Execute Orders
+              </button>
+          </div>
+        </div>
+      </div>
+        
+        <div class="table-container">
+          <table class="positions-table" id="positions-table">
+            <thead>
+              <tr>
+                <th class="checkbox-col">
+                  <input type="checkbox" id="header-checkbox" />
+                </th>
+                <th class="sortable" data-sort="ticker">
+                  Symbol
+                  <span class="sort-indicator"></span>
+                </th>
+                <th class="sortable" data-sort="name">
+                  Name
+                  <span class="sort-indicator"></span>
+                </th>
+                <th class="sortable numeric" data-sort="position">
+                  Quantity
+                  <span class="sort-indicator"></span>
+                </th>
+                <th class="sortable numeric" data-sort="mktPrice">
+                  Price
+                  <span class="sort-indicator"></span>
+                </th>
+                <th class="sortable numeric" data-sort="mktValue">
+                  Market Value
+                  <span class="sort-indicator"></span>
+                </th>
+                <th class="sortable numeric" data-sort="unrealizedPnl">
+                  Unrealized P&L
+                  <span class="sort-indicator"></span>
+                </th>
+                <th class="sortable numeric" data-sort="avgCost">
+                  Avg Cost
+                  <span class="sort-indicator"></span>
+                </th>
+                <th class="sortable" data-sort="sector">
+                  Sector
+                  <span class="sort-indicator"></span>
+                </th>
+                <th class="quantity-col">Buy Qty</th>
+                <th class="quantity-col">Sell Qty</th>
+                <th class="actions-col">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="positions-tbody">
+              <!-- Table rows will be populated by JavaScript -->
+            </tbody>
+          </table>
+    </div>
+  
+        <div class="table-footer">
+          <div class="selected-count">
+            <span id="selected-count">0 selected</span>
+  </div>
+          <div class="table-pagination">
+            <button id="prev-page" class="btn btn-secondary" disabled>Previous</button>
+            <span id="page-info">Page 1 of 1</span>
+            <button id="next-page" class="btn btn-secondary" disabled>Next</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Order Execution Confirmation Modal -->
+    <div class="modal-overlay" id="order-confirmation-modal" style="display: none;">
+      <div class="modal-container">
+        <div class="modal-header">
+          <h3 class="modal-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/>
+              <line x1="15" y1="9" x2="9" y2="15"/>
+              <line x1="9" y1="9" x2="15" y2="15"/>
+            </svg>
+            Confirm Order Execution
+          </h3>
+          <button class="modal-close" id="modal-close" aria-label="Close">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="warning-notice">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <p><strong>Trading Risk Notice:</strong> You are about to execute <strong>market orders outside Regular Trading Hours (RTH)</strong>. Extended hours trading involves higher volatility and reduced liquidity.</p>
+          </div>
+          
+          <div class="order-summary">
+            <h4>Order Summary</h4>
+            <div class="summary-stats">
+              <div class="stat">
+                <span class="stat-label">Total Orders:</span>
+                <span class="stat-value" id="total-orders-count">0</span>
+              </div>
+              <div class="stat">
+                <span class="stat-label">Buy Orders:</span>
+                <span class="stat-value" id="buy-orders-count">0</span>
+              </div>
+              <div class="stat">
+                <span class="stat-label">Sell Orders:</span>
+                <span class="stat-value" id="sell-orders-count">0</span>
+              </div>
+              <div class="stat">
+                <span class="stat-label">Est. Total Value:</span>
+                <span class="stat-value" id="estimated-value">$0.00</span>
+              </div>
+            </div>
+            
+            <div class="orders-list" id="orders-list">
+              <!-- Orders will be populated here -->
+            </div>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="cancel-execution">Cancel</button>
+          <button class="btn btn-primary execute-confirm" id="confirm-execution">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="5 4 15 12 5 20 5 4"/>
+            </svg>
+            Execute All Orders
+          </button>
         </div>
       </div>
     </div>
-  </div>
-  
-  <script src="../scripts/trading-utils.js"></script>
+  </main>
+
+  <!-- Client-side API interaction script -->
+  <script>
+    // API Configuration
+    const API_BASE = 'http://localhost:8080';
+    const API_KEY = 'SreVG34QqCb4yu64iesQSnmql8VLZ1FIS2ySzxrudNg';
+
+    // API Helper Function
+    async function callAPI(endpoint: string, method: string = 'GET', data: any = null) {
+      try {
+        const options: RequestInit = {
+          method,
+          headers: {
+            'X-API-Key': API_KEY,
+            'Content-Type': 'application/json'
+          }
+        };
+
+        if (data) {
+          options.body = JSON.stringify(data);
+        }
+
+        const response = await fetch(`${API_BASE}${endpoint}`, options);
+        const result = await response.json();
+        
+        return {
+          success: response.ok,
+          status: response.status,
+          data: result
+        };
+      } catch (error) {
+        return {
+          success: false,
+          error: (error as Error).message
+        };
+      }
+    }
+
+    // Test Functions
+    const tests = {
+      health: async () => {
+        const result = await callAPI('/health');
+        const element = document.getElementById('health-result');
+        if (element) {
+          element.innerHTML = result.success ? 
+            `✅ ${result.data.status} (IBKR: ${result.data.ibkr_connected ? 'Connected' : 'Disconnected'})` :
+            `❌ Error: ${result.error || result.status}`;
+        }
+      },
+
+      account: async () => {
+        const result = await callAPI('/account');
+        const element = document.getElementById('account-result');
+        if (element) {
+          element.innerHTML = result.success ? 
+            `✅ Account: ${result.data.account_id || 'Connected'}` :
+            `❌ Error: ${result.error || result.status}`;
+        }
+      },
+
+      positions: async () => {
+        const result = await callAPI('/positions');
+        const element = document.getElementById('positions-result');
+        if (element) {
+          element.innerHTML = result.success ? 
+            `✅ ${result.data.length || 0} positions found` :
+            `❌ Error: ${result.error || result.status}`;
+        }
+      },
+
+      symbol: async () => {
+        const symbolInput = document.getElementById('symbol-input') as HTMLInputElement;
+        const resultElement = document.getElementById('symbol-result');
+        
+        if (!symbolInput || !resultElement) return;
+        
+        const symbol = symbolInput.value.toUpperCase();
+        if (!symbol) {
+          resultElement.innerHTML = '❌ Enter a symbol';
+          return;
+        }
+        
+        const result = await callAPI(`/resolve/${symbol}`);
+        resultElement.innerHTML = result.success ? 
+          `✅ ${symbol} → ID: ${result.data.conid}` :
+          `❌ Error: ${result.error || result.status}`;
+      }
+    };
+
+    // Theme Management
+    function initTheme() {
+      // Check for saved theme or default to system preference
+      const savedTheme = localStorage.getItem('theme');
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      
+      let theme = 'light';
+      if (savedTheme) {
+        theme = savedTheme;
+      } else if (systemPrefersDark) {
+        theme = 'dark';
+      }
+      
+      document.documentElement.setAttribute('data-theme', theme);
+      console.log('Theme initialized:', theme);
+    }
+
+    function toggleTheme() {
+      const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+      
+      console.log('Theme toggled from', currentTheme, 'to', newTheme);
+    }
+
+    // Status Update Helper
+    function updateMetricStatus(cardElement: Element, status: 'success' | 'error' | 'pending', text: string) {
+      const statusEl = cardElement.querySelector('.metric-status');
+      const valueEl = cardElement.querySelector('.metric-value');
+      
+      if (statusEl) {
+        statusEl.className = `metric-status status-${status}`;
+        statusEl.textContent = status === 'success' ? 'Connected' : 
+                               status === 'error' ? 'Error' : 'Pending';
+      }
+      
+      if (valueEl) {
+        valueEl.textContent = text;
+      }
+    }
+
+    // Event Listeners
+    document.addEventListener('DOMContentLoaded', () => {
+      // Initialize theme
+      initTheme();
+
+      // Theme toggle handler
+      const themeToggle = document.getElementById('theme-toggle');
+      if (themeToggle) {
+        themeToggle.addEventListener('click', toggleTheme);
+      }
+
+      // Test button handlers (updated for new UI)
+      document.querySelectorAll('.metric-action').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const target = e.target as HTMLButtonElement;
+          const testType = target.dataset.test;
+          if (!testType) return;
+          
+          const originalText = target.textContent || '';
+          const card = target.closest('.metric-card');
+          
+          target.disabled = true;
+          target.textContent = 'Testing...';
+          
+          if (card) {
+            updateMetricStatus(card, 'pending', 'Running test...');
+          }
+          
+          await (tests as any)[testType]();
+          
+          target.disabled = false;
+          target.textContent = originalText;
+        });
+      });
+
+      // Enhanced test functions with status updates
+      const enhancedTests = {
+        health: async () => {
+          const result = await callAPI('/health');
+          const card = document.querySelector('.metric-card:has([data-test="health"])');
+          
+          if (card) {
+            updateMetricStatus(
+              card, 
+              result.success ? 'success' : 'error',
+              result.success ? 
+                `✓ IBKR ${result.data.ibkr_connected ? 'Connected' : 'Disconnected'}` :
+                `✗ ${result.error || 'Connection failed'}`
+            );
+          }
+        },
+
+        account: async () => {
+          const result = await callAPI('/account');
+          const card = document.querySelector('.metric-card:has([data-test="account"])');
+          
+          if (card) {
+            updateMetricStatus(
+              card,
+              result.success ? 'success' : 'error', 
+              result.success ?
+                `✓ Account: ${result.data.account_id || 'Connected'}` :
+                `✗ ${result.error || 'Access denied'}`
+            );
+          }
+        },
+
+        positions: async () => {
+          const result = await callAPI('/positions?limit=200');
+          const card = document.querySelector('.metric-card:has([data-test="positions"])');
+          
+          console.log('Positions API result:', result);
+          
+          if (card) {
+            if (result.success && result.data && result.data.positions) {
+              const positions = result.data.positions;
+              
+              updateMetricStatus(
+                card,
+                'success',
+                `✓ ${positions.length} positions loaded`
+              );
+              
+              // Store positions data globally for the table
+              (window as any).positionsData = positions;
+              
+              // Show positions table
+              showPositionsTable(positions);
+              
+              console.log('Positions loaded successfully:', positions.length);
+            } else {
+              updateMetricStatus(
+                card,
+                'error',
+                `✗ ${result.error || 'Failed to load positions'}`
+              );
+              
+              console.error('Positions loading failed:', result);
+            }
+          }
+        },
+
+        symbol: async () => {
+          const symbolInput = document.getElementById('symbol-input') as HTMLInputElement;
+          const card = document.querySelector('.metric-card:has([data-test="symbol"])');
+          
+          if (!symbolInput || !card) return;
+          
+          const symbol = symbolInput.value.toUpperCase().trim();
+          if (!symbol) {
+            updateMetricStatus(card, 'error', '✗ Enter a valid symbol');
+            return;
+          }
+          
+          const result = await callAPI(`/resolve/${symbol}`);
+          updateMetricStatus(
+            card,
+            result.success ? 'success' : 'error',
+            result.success ?
+              `✓ ${symbol} → Contract ID: ${result.data.conid}` :
+              `✗ Failed to resolve ${symbol}`
+          );
+        }
+      };
+
+      // Override original tests with enhanced versions
+      Object.assign(tests, enhancedTests);
+
+      // Order type change handler
+      const tradeTypeElement = document.getElementById('trade-type');
+      if (tradeTypeElement) {
+        tradeTypeElement.addEventListener('change', (e) => {
+          const target = e.target as HTMLSelectElement;
+          const limitGroup = document.getElementById('limit-price-group');
+          if (limitGroup) {
+            limitGroup.style.display = target.value === 'LMT' ? 'block' : 'none';
+          }
+        });
+      }
+
+      // Enhanced preview order handler
+      const previewButton = document.getElementById('preview-order');
+      if (previewButton) {
+        previewButton.addEventListener('click', () => {
+          const symbolInput = document.getElementById('trade-symbol') as HTMLInputElement;
+          const actionSelect = document.getElementById('trade-action') as HTMLSelectElement;
+          const quantityInput = document.getElementById('trade-quantity') as HTMLInputElement;
+          const orderTypeSelect = document.getElementById('trade-type') as HTMLSelectElement;
+          const limitPriceInput = document.getElementById('limit-price') as HTMLInputElement;
+
+          if (!symbolInput || !actionSelect || !quantityInput || !orderTypeSelect) return;
+
+          const symbol = symbolInput.value.toUpperCase().trim();
+          const action = actionSelect.value;
+          const quantity = quantityInput.value;
+          const orderType = orderTypeSelect.value;
+          const limitPrice = limitPriceInput?.value || '';
+
+          if (!symbol || !quantity || Number(quantity) <= 0) {
+            alert('Please enter a valid symbol and quantity');
+            return;
+          }
+
+          const preview = document.getElementById('order-preview');
+          if (preview) {
+            preview.innerHTML = `
+              <h4>Order Preview</h4>
+              <p><strong>${action}</strong> ${quantity} shares of <strong>${symbol}</strong></p>
+              <p>Order Type: <strong>${orderType === 'MKT' ? 'Market' : 'Limit'}</strong></p>
+              ${orderType === 'LMT' && limitPrice ? `<p>Limit Price: <strong>$${limitPrice}</strong></p>` : ''}
+              <p style="margin-top: var(--space-3); font-weight: 600;">⚠️ This will place a real order on your IBKR account!</p>
+            `;
+            preview.style.display = 'block';
+            
+            const placeOrderButton = document.getElementById('place-order') as HTMLButtonElement;
+            if (placeOrderButton) {
+              placeOrderButton.disabled = false;
+            }
+          }
+        });
+      }
+
+      // Place order handler (enhanced)
+      const placeOrderButton = document.getElementById('place-order');
+      if (placeOrderButton) {
+        placeOrderButton.addEventListener('click', () => {
+          const confirmed = confirm('Are you sure you want to place this order? This is a real trade that will be executed on your IBKR account.');
+          if (confirmed) {
+            alert('🚧 Order execution coming in the next development phase!\n\nFor now, this is a preview-only interface. Real order placement will be implemented with additional safety measures.');
+          }
+        });
+      }
+
+      // System theme preference listener
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        if (!localStorage.getItem('theme')) {
+          const newTheme = e.matches ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', newTheme);
+          console.log('System theme changed to:', newTheme);
+        }
+      });
+    });
+
+    // Interactive Positions Table Functionality
+    let positionsTable = {
+      data: [] as any[],
+      filteredData: [] as any[],
+      currentPage: 1,
+      itemsPerPage: 200,
+      sortField: 'mktValue',
+      sortDirection: 'desc' as 'asc' | 'desc',
+      selectedItems: new Set<string>()
+    };
+
+    function showPositionsTable(positions: any[]) {
+      positionsTable.data = positions;
+      positionsTable.filteredData = [...positions];
+      
+      // Show the table section
+      const section = document.getElementById('positions-section');
+      if (section) {
+        section.style.display = 'block';
+      }
+      
+      // Populate sector filter
+      populateSectorFilter(positions);
+      
+      // Render table
+      renderTable();
+      
+      // Setup event listeners
+      setupTableEventListeners();
+      
+      // Update count
+      updatePositionsCount();
+    }
+
+    function populateSectorFilter(positions: any[]) {
+      const sectors = [...new Set(positions.map(p => p.sector || 'Unknown').filter(Boolean))].sort();
+      const sectorFilter = document.getElementById('sector-filter') as HTMLSelectElement;
+      
+      if (sectorFilter) {
+        // Clear existing options except "All Sectors"
+        sectorFilter.innerHTML = '<option value="">All Sectors</option>';
+        
+        sectors.forEach(sector => {
+          const option = document.createElement('option');
+          option.value = sector;
+          option.textContent = sector;
+          sectorFilter.appendChild(option);
+        });
+      }
+    }
+
+    function formatCurrency(value: number, currency: string = 'USD'): string {
+      if (value === null || value === undefined) return '-';
+      
+      const formatter = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+      
+      return formatter.format(value);
+    }
+
+    function formatNumber(value: number): string {
+      if (value === null || value === undefined) return '-';
+      
+      return new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(value);
+    }
+
+    function getProfitLossClass(value: number): string {
+      if (value > 0) return 'profit';
+      if (value < 0) return 'loss';
+      return 'neutral';
+    }
+
+    function renderTableRow(position: any, index: number): string {
+      const isSelected = positionsTable.selectedItems.has(position.conid);
+      const pnlClass = getProfitLossClass(position.unrealizedPnl || 0);
+      
+      return `
+        <tr class="table-row ${isSelected ? 'selected' : ''}" data-conid="${position.conid}">
+          <td class="checkbox-col">
+            <input type="checkbox" class="row-checkbox" data-conid="${position.conid}" ${isSelected ? 'checked' : ''} />
+          </td>
+          <td class="symbol-col">
+            <div class="symbol-info">
+              <span class="ticker">${position.ticker || '-'}</span>
+              <span class="currency">${position.currency || 'USD'}</span>
+            </div>
+          </td>
+          <td class="name-col">
+            <div class="name-info">
+              <span class="company-name">${position.name || position.contractDesc || '-'}</span>
+              <span class="asset-class">${position.assetClass || '-'}</span>
+            </div>
+          </td>
+          <td class="numeric">${formatNumber(position.position || 0)}</td>
+          <td class="numeric">${formatCurrency(position.mktPrice || 0, position.currency)}</td>
+          <td class="numeric">${formatCurrency(position.mktValue || 0, position.currency)}</td>
+          <td class="numeric ${pnlClass}">${formatCurrency(position.unrealizedPnl || 0, position.currency)}</td>
+          <td class="numeric">${formatCurrency(position.avgCost || 0, position.currency)}</td>
+          <td class="sector-col">${position.sector || 'Unknown'}</td>
+          <td class="quantity-col">
+            <input type="number" 
+                   class="quantity-input buy-qty-input" 
+                   data-conid="${position.conid}"
+                   data-action="BUY"
+                   placeholder="0"
+                   min="0"
+                   step="1"
+                   value="" />
+          </td>
+          <td class="quantity-col">
+            <input type="number" 
+                   class="quantity-input sell-qty-input" 
+                   data-conid="${position.conid}"
+                   data-action="SELL"
+                   placeholder="0"
+                   min="0"
+                   step="1"
+                   max="${Math.abs(position.position || 0)}"
+                   value="" />
+          </td>
+          <td class="actions-col">
+            <div class="action-buttons">
+              <button class="btn btn-sm btn-success" onclick="buyPosition('${position.conid}', '${position.ticker}')">Buy</button>
+              <button class="btn btn-sm btn-danger" onclick="sellPosition('${position.conid}', '${position.ticker}')">Sell</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('positions-tbody');
+      if (!tbody) return;
+      
+      const startIndex = (positionsTable.currentPage - 1) * positionsTable.itemsPerPage;
+      const endIndex = startIndex + positionsTable.itemsPerPage;
+      const pageData = positionsTable.filteredData.slice(startIndex, endIndex);
+      
+      tbody.innerHTML = pageData.map((position, index) => renderTableRow(position, startIndex + index)).join('');
+      
+      updatePagination();
+      updateSelectedCount();
+    }
+
+    function sortTable(field: string) {
+      if (positionsTable.sortField === field) {
+        positionsTable.sortDirection = positionsTable.sortDirection === 'asc' ? 'desc' : 'asc';
+      } else {
+        positionsTable.sortField = field;
+        positionsTable.sortDirection = 'desc';
+      }
+      
+      positionsTable.filteredData.sort((a: any, b: any) => {
+        let aVal: any = a[field];
+        let bVal: any = b[field];
+        
+        // Handle null/undefined values
+        if (aVal == null) aVal = 0;
+        if (bVal == null) bVal = 0;
+        
+        // Convert to string for string comparison
+        if (typeof aVal === 'string') {
+          aVal = aVal.toLowerCase();
+          bVal = bVal?.toLowerCase() || '';
+        }
+        
+        let comparison = 0;
+        if (aVal < bVal) comparison = -1;
+        if (aVal > bVal) comparison = 1;
+        
+        return positionsTable.sortDirection === 'asc' ? comparison : -comparison;
+      });
+      
+      positionsTable.currentPage = 1;
+      renderTable();
+      updateSortIndicators(field);
+    }
+
+    function updateSortIndicators(activeField: string) {
+      document.querySelectorAll('.sort-indicator').forEach(indicator => {
+        indicator.textContent = '';
+        indicator.className = 'sort-indicator';
+      });
+      
+      const activeHeader = document.querySelector(`[data-sort="${activeField}"] .sort-indicator`);
+      if (activeHeader) {
+        activeHeader.textContent = positionsTable.sortDirection === 'asc' ? '↑' : '↓';
+        activeHeader.className = `sort-indicator active ${positionsTable.sortDirection}`;
+      }
+    }
+
+    function filterTable() {
+      const searchTerm = (document.getElementById('positions-search') as HTMLInputElement)?.value.toLowerCase() || '';
+      const sectorFilter = (document.getElementById('sector-filter') as HTMLSelectElement)?.value || '';
+      
+      positionsTable.filteredData = positionsTable.data.filter((position: any) => {
+        const matchesSearch = !searchTerm || 
+          (position.ticker?.toLowerCase().includes(searchTerm)) ||
+          (position.name?.toLowerCase().includes(searchTerm)) ||
+          (position.contractDesc?.toLowerCase().includes(searchTerm));
+        
+        const matchesSector = !sectorFilter || position.sector === sectorFilter;
+        
+        return matchesSearch && matchesSector;
+      });
+      
+      positionsTable.currentPage = 1;
+      renderTable();
+      updatePositionsCount();
+    }
+
+    function updatePositionsCount() {
+      const countElement = document.getElementById('positions-count');
+      if (countElement) {
+        const total = positionsTable.data.length;
+        const filtered = positionsTable.filteredData.length;
+        countElement.textContent = filtered === total ? 
+          `${total} positions` : 
+          `${filtered} of ${total} positions`;
+      }
+    }
+
+    function updateSelectedCount() {
+      const countElement = document.getElementById('selected-count');
+      if (countElement) {
+        const count = positionsTable.selectedItems.size;
+        countElement.textContent = `${count} selected`;
+      }
+      
+      // Update bulk action buttons
+      const bulkSell = document.getElementById('bulk-sell') as HTMLButtonElement;
+      const bulkBuy = document.getElementById('bulk-buy') as HTMLButtonElement;
+      const hasSelection = positionsTable.selectedItems.size > 0;
+      
+      if (bulkSell) bulkSell.disabled = !hasSelection;
+      if (bulkBuy) bulkBuy.disabled = !hasSelection;
+    }
+
+    function updatePagination() {
+      const totalPages = Math.ceil(positionsTable.filteredData.length / positionsTable.itemsPerPage);
+      const pageInfo = document.getElementById('page-info');
+      const prevBtn = document.getElementById('prev-page') as HTMLButtonElement;
+      const nextBtn = document.getElementById('next-page') as HTMLButtonElement;
+      
+      if (pageInfo) {
+        pageInfo.textContent = `Page ${positionsTable.currentPage} of ${totalPages}`;
+      }
+      
+      if (prevBtn) prevBtn.disabled = positionsTable.currentPage <= 1;
+      if (nextBtn) nextBtn.disabled = positionsTable.currentPage >= totalPages;
+    }
+
+    function setupTableEventListeners() {
+      // Search functionality
+      const searchInput = document.getElementById('positions-search');
+      if (searchInput) {
+        searchInput.addEventListener('input', filterTable);
+      }
+      
+      // Sector filter
+      const sectorFilter = document.getElementById('sector-filter');
+      if (sectorFilter) {
+        sectorFilter.addEventListener('change', filterTable);
+      }
+      
+      // Column sorting
+      document.querySelectorAll('.sortable').forEach(header => {
+        header.addEventListener('click', () => {
+          const field = header.getAttribute('data-sort');
+          if (field) sortTable(field);
+        });
+      });
+      
+      // Header checkbox (select all)
+      const headerCheckbox = document.getElementById('header-checkbox') as HTMLInputElement;
+      if (headerCheckbox) {
+        headerCheckbox.addEventListener('change', () => {
+          const checked = headerCheckbox.checked;
+          positionsTable.selectedItems.clear();
+          
+          if (checked) {
+            const startIndex = (positionsTable.currentPage - 1) * positionsTable.itemsPerPage;
+            const endIndex = startIndex + positionsTable.itemsPerPage;
+            const pageData = positionsTable.filteredData.slice(startIndex, endIndex);
+            
+            pageData.forEach((position: any) => {
+              positionsTable.selectedItems.add(position.conid);
+            });
+          }
+          
+          renderTable();
+        });
+      }
+      
+      // Row checkboxes
+      document.addEventListener('change', (e) => {
+        const checkbox = e.target as HTMLInputElement;
+        if (checkbox.classList.contains('row-checkbox')) {
+          const conid = checkbox.getAttribute('data-conid');
+          if (conid) {
+            if (checkbox.checked) {
+              positionsTable.selectedItems.add(conid);
+            } else {
+              positionsTable.selectedItems.delete(conid);
+            }
+            updateSelectedCount();
+          }
+        }
+      });
+      
+      // Pagination
+      const prevBtn = document.getElementById('prev-page');
+      const nextBtn = document.getElementById('next-page');
+      
+      if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+          if (positionsTable.currentPage > 1) {
+            positionsTable.currentPage--;
+            renderTable();
+          }
+        });
+      }
+      
+      if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+          const totalPages = Math.ceil(positionsTable.filteredData.length / positionsTable.itemsPerPage);
+          if (positionsTable.currentPage < totalPages) {
+            positionsTable.currentPage++;
+            renderTable();
+          }
+        });
+      }
+      
+      // Bulk actions
+      const selectAllBtn = document.getElementById('select-all');
+      if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', () => {
+          positionsTable.selectedItems.clear();
+          positionsTable.filteredData.forEach((position: any) => {
+            positionsTable.selectedItems.add(position.conid);
+          });
+          renderTable();
+        });
+      }
+      
+      // Execute Orders button
+      const executeOrdersBtn = document.getElementById('execute-orders-btn');
+      if (executeOrdersBtn) {
+        executeOrdersBtn.addEventListener('click', showExecutionModal);
+      }
+      
+      // Quantity input monitoring
+      document.addEventListener('input', (e) => {
+        const input = e.target as HTMLInputElement;
+        if (input.classList.contains('quantity-input')) {
+          updateExecuteButtonState();
+        }
+      });
+      
+      // Modal event listeners
+      const modalCloseBtn = document.getElementById('modal-close');
+      const cancelBtn = document.getElementById('cancel-execution');
+      const confirmBtn = document.getElementById('confirm-execution');
+      
+      if (modalCloseBtn) modalCloseBtn.addEventListener('click', hideExecutionModal);
+      if (cancelBtn) cancelBtn.addEventListener('click', hideExecutionModal);
+      if (confirmBtn) confirmBtn.addEventListener('click', executeOrders);
+    }
+
+    // Individual position actions
+    function buyPosition(conid: string, ticker: string) {
+      alert(`🚧 Buy feature coming soon!\\n\\nWould buy more ${ticker} (${conid})`);
+    }
+
+    function sellPosition(conid: string, ticker: string) {
+      alert(`🚧 Sell feature coming soon!\\n\\nWould sell ${ticker} (${conid})`);
+    }
+
+    // Order Execution Functions
+    function getOrdersFromInputs() {
+      const orders: any[] = [];
+      const quantityInputs = document.querySelectorAll('.quantity-input');
+      
+      quantityInputs.forEach(input => {
+        const inputEl = input as HTMLInputElement;
+        const quantity = parseInt(inputEl.value) || 0;
+        
+        if (quantity > 0) {
+          const conid = inputEl.getAttribute('data-conid');
+          const action = inputEl.getAttribute('data-action');
+          
+          // Find the position data
+          const position = positionsTable.data.find(p => p.conid === conid);
+          if (position && conid && action) {
+            orders.push({
+              conid,
+              action,
+              quantity,
+              ticker: position.ticker,
+              name: position.name,
+              mktPrice: position.mktPrice,
+              estimatedValue: (position.mktPrice || 0) * quantity
+            });
+          }
+        }
+      });
+      
+      return orders;
+    }
+    
+    function updateExecuteButtonState() {
+      const executeBtn = document.getElementById('execute-orders-btn') as HTMLButtonElement;
+      const orders = getOrdersFromInputs();
+      
+      if (executeBtn) {
+        executeBtn.disabled = orders.length === 0;
+      }
+    }
+    
+    function showExecutionModal() {
+      const modal = document.getElementById('order-confirmation-modal');
+      const orders = getOrdersFromInputs();
+      
+      if (orders.length === 0) {
+        alert('Please enter quantities for the positions you want to trade.');
+        return;
+      }
+      
+      // Update modal content
+      updateModalSummary(orders);
+      
+      if (modal) {
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+      }
+    }
+    
+    function hideExecutionModal() {
+      const modal = document.getElementById('order-confirmation-modal');
+      if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+      }
+    }
+    
+    function updateModalSummary(orders: any[]) {
+      const buyOrders = orders.filter(o => o.action === 'BUY');
+      const sellOrders = orders.filter(o => o.action === 'SELL');
+      const totalValue = orders.reduce((sum, o) => sum + Math.abs(o.estimatedValue), 0);
+      
+      // Update summary stats
+      const totalOrdersEl = document.getElementById('total-orders-count');
+      const buyOrdersEl = document.getElementById('buy-orders-count');
+      const sellOrdersEl = document.getElementById('sell-orders-count');
+      const estimatedValueEl = document.getElementById('estimated-value');
+      
+      if (totalOrdersEl) totalOrdersEl.textContent = orders.length.toString();
+      if (buyOrdersEl) buyOrdersEl.textContent = buyOrders.length.toString();
+      if (sellOrdersEl) sellOrdersEl.textContent = sellOrders.length.toString();
+      if (estimatedValueEl) estimatedValueEl.textContent = formatCurrency(totalValue, 'USD');
+      
+      // Update orders list
+      const ordersListEl = document.getElementById('orders-list');
+      if (ordersListEl) {
+        ordersListEl.innerHTML = orders.map(order => `
+          <div class="order-item">
+            <div class="order-details">
+              <span class="order-action ${order.action.toLowerCase()}">${order.action}</span>
+              <span class="order-quantity">${order.quantity}</span>
+              <span class="order-symbol">${order.ticker}</span>
+              <span class="order-name">${order.name || ''}</span>
+            </div>
+            <div class="order-value">
+              <span class="price">@ ${formatCurrency(order.mktPrice, 'USD')}</span>
+              <span class="total">${formatCurrency(Math.abs(order.estimatedValue), 'USD')}</span>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+    
+    async function executeOrders() {
+      const confirmBtn = document.getElementById('confirm-execution') as HTMLButtonElement;
+      const orders = getOrdersFromInputs();
+      
+      if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = `
+          <svg class="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12a9 9 0 11-6.219-8.56"/>
+          </svg>
+          Executing...
+        `;
+      }
+      
+      try {
+        const results = [];
+        let successCount = 0;
+        let failureCount = 0;
+        
+        for (const order of orders) {
+          try {
+            const orderPayload = {
+              conid: order.conid,
+              orderType: 'MKT',
+              side: order.action,
+              quantity: order.quantity,
+              tif: 'DAY',
+              outsideRTH: true // Enable outside Regular Trading Hours
+            };
+            
+            console.log('Placing order:', orderPayload);
+            
+            const result = await callAPI('/order', 'POST', orderPayload);
+            
+            if (result.success) {
+              successCount++;
+              results.push(`✅ ${order.action} ${order.quantity} ${order.ticker}: Order placed successfully`);
+            } else {
+              failureCount++;
+              results.push(`❌ ${order.action} ${order.quantity} ${order.ticker}: ${result.error || 'Failed'}`);
+            }
+            
+            // Small delay between orders to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+          } catch (error) {
+            failureCount++;
+            results.push(`❌ ${order.action} ${order.quantity} ${order.ticker}: ${error}`);
+          }
+        }
+        
+        // Show results
+        const message = `
+📊 Order Execution Complete!
+
+✅ Successful: ${successCount}
+❌ Failed: ${failureCount}
+
+Details:
+${results.join('\\n')}
+
+Note: Orders are placed as Market orders outside RTH (Regular Trading Hours).
+        `;
+        
+        alert(message);
+        
+        // Clear quantity inputs
+        document.querySelectorAll('.quantity-input').forEach(input => {
+          (input as HTMLInputElement).value = '';
+        });
+        
+        // Hide modal and update button state
+        hideExecutionModal();
+        updateExecuteButtonState();
+        
+        // Refresh positions data
+        await tests.positions();
+        
+      } catch (error) {
+        alert(`❌ Execution failed: ${error}`);
+      } finally {
+        if (confirmBtn) {
+          confirmBtn.disabled = false;
+          confirmBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="5 4 15 12 5 20 5 4"/>
+            </svg>
+            Execute All Orders
+          `;
+        }
+      }
+    }
+
+    // Make functions globally available
+    (window as any).buyPosition = buyPosition;
+    (window as any).sellPosition = sellPosition;
+  </script>
 </BaseLayout>
 
 <style>
-  .trading-container {
-				width: 100%;
-    max-width: 800px;
+  @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..800&display=swap');
+  
+  /* Modern CSS Variables with light-dark() support */
+  :root {
+    color-scheme: light dark;
+    
+    /* Typography Scale */
+    --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+    
+    /* Spacing Scale */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.25rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+    --space-12: 3rem;
+    
+    /* Colors using light-dark() */
+    --color-background: light-dark(#ffffff, #0a0a0a);
+    --color-surface: light-dark(#f8fafc, #171717);
+    --color-surface-elevated: light-dark(#ffffff, #262626);
+    --color-border: light-dark(#e2e8f0, #404040);
+    --color-border-strong: light-dark(#cbd5e1, #525252);
+    
+    /* Text Colors */
+    --color-text-primary: light-dark(#0f172a, #f8fafc);
+    --color-text-secondary: light-dark(#475569, #a1a1aa);
+    --color-text-tertiary: light-dark(#64748b, #71717a);
+    
+    /* Semantic Colors */
+    --color-success: light-dark(#059669, #10b981);
+    --color-success-bg: light-dark(#d1fae5, #065f46);
+    --color-error: light-dark(#dc2626, #ef4444);
+    --color-error-bg: light-dark(#fee2e2, #7f1d1d);
+    --color-warning: light-dark(#d97706, #f59e0b);
+    --color-warning-bg: light-dark(#fef3c7, #78350f);
+    --color-info: light-dark(#2563eb, #3b82f6);
+    --color-info-bg: light-dark(#dbeafe, #1e3a8a);
+    
+    /* Interactive Colors */
+    --color-primary: light-dark(#2563eb, #3b82f6);
+    --color-primary-hover: light-dark(#1d4ed8, #2563eb);
+    --color-secondary: light-dark(#64748b, #6b7280);
+    --color-secondary-hover: light-dark(#475569, #4b5563);
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    
+    /* Border Radius */
+    --radius-sm: 0.375rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+  }
+
+  /* Reset and Base Styles */
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: var(--font-family);
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Main Layout */
+  .trading-app {
+    min-height: 100vh;
+    background: var(--color-background);
+  }
+
+  /* Navigation Header */
+  .app-header {
+    background: var(--color-surface-elevated);
+    border-bottom: 1px solid var(--color-border);
+    backdrop-filter: blur(10px);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .header-content {
+    max-width: 1400px;
     margin: 0 auto;
-    padding: var(--spacing-lg);
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-xl);
-			}
-			
-  .trading-info-card {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-sm);
-    overflow: hidden;
-			}
-			
-  .info-header {
+    padding: var(--space-4) var(--space-6);
     display: flex;
     align-items: center;
-    gap: var(--spacing-md);
-    padding: var(--spacing-lg);
-    border-bottom: 1px solid hsl(var(--border));
-    background: hsl(var(--muted) / 0.3);
+    justify-content: space-between;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
 			}
 			
-  .info-icon {
+  .brand-icon {
     display: flex;
     align-items: center;
     justify-content: center;
     width: 32px;
     height: 32px;
-    background: hsl(var(--accent));
-    color: hsl(var(--accent-foreground));
-    border-radius: var(--radius);
-			}
-			
-  .info-title {
-    font-family: var(--font-heading);
-    font-size: var(--text-lg);
-    font-weight: 600;
-    color: hsl(var(--foreground));
+    background: var(--color-primary);
+    color: white;
+    border-radius: var(--radius-md);
+  }
+
+  .brand-title {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
     margin: 0;
     letter-spacing: -0.025em;
 			}
 			
-  .trade-params {
-    padding: var(--spacing-lg);
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-lg);
-			}
-			
-  .param-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: var(--spacing-lg);
-			}
-			
-  .param-item {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-xs);
-    padding: var(--spacing-md);
-    background: hsl(var(--muted) / 0.3);
-    border-radius: var(--radius);
-    border: 1px solid hsl(var(--border));
+  .brand-subtitle {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
-  
-  .param-label {
-    font-size: var(--text-xs);
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .system-status {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    position: relative;
+  }
+
+  .status-dot::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border-radius: 50%;
+    opacity: 0.3;
+    animation: pulse 2s infinite;
+  }
+
+  .status-online {
+    background: var(--color-success);
+  }
+
+  .status-online::before {
+    background: var(--color-success);
+  }
+
+  .status-offline {
+    background: var(--color-error);
+  }
+
+  .status-offline::before {
+    background: var(--color-error);
+  }
+
+  .status-text {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--color-text-secondary);
+  }
+
+  .theme-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .theme-toggle:hover {
+    background: var(--color-surface-elevated);
+    border-color: var(--color-border-strong);
+  }
+
+  .sun-icon {
+    display: block;
+  }
+
+  .moon-icon {
+    display: none;
+  }
+
+  [data-theme="dark"] .sun-icon {
+    display: none;
+  }
+
+  [data-theme="dark"] .moon-icon {
+    display: block;
+  }
+
+  /* Dashboard Grid */
+  .dashboard-grid {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: var(--space-6);
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: var(--space-6);
+  }
+
+  /* Panel Styles */
+  .panel {
+    background: var(--color-surface-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-5) var(--space-6);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-surface);
+  }
+
+  .panel-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--color-text-primary);
+  }
+
+  .panel-icon {
+    color: var(--color-text-secondary);
+  }
+
+  .panel-badge {
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
 				font-weight: 600;
-    color: hsl(var(--muted-foreground));
+				text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: var(--color-info-bg);
+    color: var(--color-info);
+  }
+
+  .panel-badge.warning {
+    background: var(--color-warning-bg);
+    color: var(--color-warning);
+  }
+
+  /* Connectivity Panel */
+  .connectivity-grid {
+    padding: var(--space-6);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--space-4);
+  }
+
+  .metric-card {
+    padding: var(--space-5);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    transition: all 0.2s ease;
+  }
+
+  .metric-card:hover {
+    border-color: var(--color-border-strong);
+    box-shadow: var(--shadow-md);
+  }
+
+  .metric-card.symbol-lookup {
+    grid-column: 1 / -1;
+  }
+
+  .metric-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-3);
+  }
+
+  .metric-label {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--color-text-secondary);
 				text-transform: uppercase;
     letter-spacing: 0.05em;
 			}
 			
-  .param-value {
-    font-size: var(--text-sm);
+  .metric-status {
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
     font-weight: 600;
-    font-family: var(--font-mono);
-    color: hsl(var(--foreground));
-			}
-			
-  .param-value.symbol {
-    color: hsl(var(--primary));
-			}
-			
-  .param-value.action {
-    color: hsl(var(--chart-green));
+    text-transform: uppercase;
   }
-  
-  .param-value.price {
-    color: hsl(var(--warning));
-			}
-			
-  .trade-note {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--spacing-md);
-    padding: var(--spacing-md);
-    background: hsl(var(--muted) / 0.5);
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
-    border-left: 4px solid hsl(var(--warning));
-			}
-			
-  .note-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    color: hsl(var(--warning));
-    flex-shrink: 0;
+
+  .status-success {
+    background: var(--color-success-bg);
+    color: var(--color-success);
   }
-  
-  .note-text {
-    font-size: var(--text-xs);
-    color: hsl(var(--muted-foreground));
-    margin: 0;
-    line-height: 1.4;
+
+  .status-error {
+    background: var(--color-error-bg);
+    color: var(--color-error);
+  }
+
+  .status-pending {
+    background: var(--color-border);
+    color: var(--color-text-tertiary);
+  }
+
+  .metric-value {
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-4);
+    min-height: 1.5rem;
+  }
+
+  .metric-action {
+    width: 100%;
+    padding: var(--space-2) var(--space-4);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-elevated);
+    color: var(--color-text-primary);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .metric-action:hover {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+  }
+
+  .metric-action.primary {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+  }
+
+  .metric-action.primary:hover {
+    background: var(--color-primary-hover);
+    border-color: var(--color-primary-hover);
+  }
+
+  .metric-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .lookup-input {
+    margin-bottom: var(--space-3);
+  }
+
+  .symbol-input {
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-border);
+    background: var(--color-background);
+    color: var(--color-text-primary);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    font-family: var(--font-family);
+    transition: all 0.2s ease;
+  }
+
+  .symbol-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgb(37 99 235 / 0.1);
+  }
+
+  /* Trading Panel */
+  .trade-form {
+    padding: var(--space-6);
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4);
+    margin-bottom: var(--space-5);
+			}
+			
+  .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .field-label {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--color-text-secondary);
+				text-transform: uppercase;
+    letter-spacing: 0.05em;
+			}
+			
+  .field-input, .field-select {
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-border);
+    background: var(--color-background);
+    color: var(--color-text-primary);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    font-family: var(--font-family);
+    transition: all 0.2s ease;
+  }
+
+  .field-input:focus, .field-select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgb(37 99 235 / 0.1);
+  }
+
+  .limit-price-field {
+    margin-bottom: var(--space-5);
+  }
+
+  .price-input {
+    position: relative;
+  }
+
+  .currency-symbol {
+    position: absolute;
+    left: var(--space-4);
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-secondary);
+    font-weight: 500;
+    pointer-events: none;
+  }
+
+  .price-input .field-input {
+    padding-left: calc(var(--space-4) + 1.5ch);
+  }
+
+  .form-actions {
+    display: flex;
+    gap: var(--space-3);
+    margin-bottom: var(--space-5);
+  }
+
+  .btn {
+    flex: 1;
+    padding: var(--space-3) var(--space-5);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    font-family: var(--font-family);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+  }
+
+  .btn-primary {
+    background: var(--color-primary);
+    color: white;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-primary-hover);
+  }
+
+  .btn-secondary {
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    border-color: var(--color-border);
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--color-surface-elevated);
+    border-color: var(--color-border-strong);
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .order-preview {
+    padding: var(--space-5);
+    background: var(--color-warning-bg);
+    border: 1px solid var(--color-warning);
+    border-radius: var(--radius-md);
+    color: var(--color-warning);
+  }
+
+  .order-preview h4 {
+    margin: 0 0 var(--space-3) 0;
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+  }
+
+  .order-preview p {
+    margin: var(--space-1) 0;
+    font-size: var(--font-size-sm);
+  }
+
+  /* Animations */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  /* Responsive Design */
+  @media (max-width: 1024px) {
+    .dashboard-grid {
+      grid-template-columns: 1fr;
+      gap: var(--space-5);
+    }
+    
+    .connectivity-grid {
+      grid-template-columns: 1fr;
+    }
 			}
 			
   @media (max-width: 768px) {
-    .trading-container {
-      padding: var(--spacing-md);
-      gap: var(--spacing-lg);
-			}
-			
-    .param-grid {
-      grid-template-columns: 1fr;
-      gap: var(--spacing-md);
-			}
-			
-    .info-header {
-      padding: var(--spacing-md);
-			}
-			
-    .trade-params {
-      padding: var(--spacing-md);
+    .header-content {
+      padding: var(--space-4);
+      flex-direction: column;
+      gap: var(--space-4);
     }
     
-    .trade-note {
+    .dashboard-grid {
+      padding: var(--space-4);
+    }
+    
+    .form-row {
+      grid-template-columns: 1fr;
+    }
+    
+    .form-actions {
       flex-direction: column;
-      text-align: center;
     }
   }
   
   @media (max-width: 480px) {
-    .trading-container {
-      max-width: 100%;
+    .connectivity-grid {
+      padding: var(--space-4);
     }
     
-    .param-grid {
+    .trade-form {
+      padding: var(--space-4);
+    }
+  }
+
+  /* Modern Professional Trading Table - 2025 Design */
+  .positions-section {
+    width: 100%;
+    max-width: 1900px;
+    margin: var(--space-8) auto;
+    padding: 0 var(--space-6);
+  }
+
+  .positions-container {
+    background: var(--color-surface-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 10px 10px -5px rgb(0 0 0 / 0.04);
+  }
+
+  .positions-header {
+    padding: var(--space-8);
+    border-bottom: 1px solid var(--color-border);
+    background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface-elevated) 100%);
+  }
+
+  .positions-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-6);
+  }
+
+  .positions-title h2 {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--color-text-primary);
+    margin: 0;
+    letter-spacing: -0.025em;
+  }
+
+  .positions-count {
+    background: linear-gradient(135deg, var(--color-primary) 0%, #1d4ed8 100%);
+    color: white;
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    letter-spacing: 0.025em;
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.1);
+    box-shadow: 0 4px 6px -1px rgb(37 99 235 / 0.2);
+  }
+
+  .positions-controls {
+    display: flex;
+    gap: var(--space-5);
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .search-box {
+    position: relative;
+    min-width: 320px;
+    flex: 1;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: var(--space-4);
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-secondary);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .search-input {
+    width: 100%;
+    padding: var(--space-4) var(--space-4) var(--space-4) calc(var(--space-4) + 28px);
+    border: 2px solid var(--color-border);
+    background: var(--color-background);
+    color: var(--color-text-primary);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-base);
+    font-family: var(--font-family);
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+  }
+
+  .search-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 4px rgb(37 99 235 / 0.15), 0 10px 15px -3px rgb(0 0 0 / 0.1);
+    transform: translateY(-1px);
+  }
+
+  .filter-select {
+    padding: var(--space-4) var(--space-5);
+    border: 2px solid var(--color-border);
+    background: var(--color-background);
+    color: var(--color-text-primary);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-base);
+    font-family: var(--font-family);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+    min-width: 160px;
+  }
+
+  .filter-select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 4px rgb(37 99 235 / 0.15);
+    transform: translateY(-1px);
+  }
+
+  .bulk-actions {
+    display: flex;
+    gap: var(--space-3);
+    margin-left: auto;
+  }
+
+  .table-container {
+    overflow-x: auto;
+    background: var(--color-background);
+    max-height: 75vh;
+    overflow-y: auto;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  /* Ultra-Modern Table Design */
+  .positions-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: var(--font-size-sm);
+    background: var(--color-background);
+  }
+
+  .positions-table th {
+    background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface-elevated) 100%);
+    color: var(--color-text-primary);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: var(--space-5) var(--space-4);
+    text-align: left;
+    border-bottom: 3px solid var(--color-primary);
+    font-size: var(--font-size-xs);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    white-space: nowrap;
+    user-select: none;
+  }
+
+  .positions-table th.sortable {
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .positions-table th.sortable:hover {
+    background: linear-gradient(135deg, var(--color-surface-elevated) 0%, var(--color-surface) 100%);
+    color: var(--color-primary);
+    transform: translateY(-1px);
+  }
+
+  .positions-table th.numeric {
+    text-align: right;
+  }
+
+  .sort-indicator {
+    margin-left: var(--space-2);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    transition: all 0.3s ease;
+  }
+
+  .sort-indicator.active {
+    color: var(--color-primary);
+    transform: scale(1.2);
+  }
+
+  /* Modern Row Styling with Zebra Stripes */
+  .positions-table td {
+    padding: var(--space-5) var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+    vertical-align: middle;
+    transition: all 0.3s ease;
+  }
+
+  .positions-table .numeric {
+    text-align: right;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .positions-table tbody tr {
+    transition: all 0.3s ease;
+    border-left: 4px solid transparent;
+  }
+
+  .positions-table tbody tr:nth-child(odd) {
+    background: var(--color-background);
+  }
+
+  .positions-table tbody tr:nth-child(even) {
+    background: light-dark(#f8fafc, #1a1a1a);
+  }
+
+  .positions-table tbody tr:hover {
+    background: var(--color-surface);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.05);
+    transform: translateY(-2px);
+    border-left: 4px solid var(--color-primary);
+  }
+
+  .table-row.selected {
+    background: var(--color-info-bg) !important;
+    border-left: 4px solid var(--color-primary);
+    box-shadow: 0 4px 6px -1px rgb(37 99 235 / 0.2);
+  }
+
+  /* Enhanced Column Styling */
+  .checkbox-col {
+    width: 60px;
+    text-align: center;
+  }
+
+  .checkbox-col input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: var(--color-primary);
+    border-radius: var(--radius-sm);
+  }
+
+  .symbol-col {
+    width: 140px;
+  }
+
+  .symbol-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .ticker {
+    font-weight: 800;
+    color: var(--color-text-primary);
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    font-size: var(--font-size-base);
+    letter-spacing: 0.05em;
+  }
+
+  .currency {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    font-weight: 700;
+    background: var(--color-surface);
+    padding: 2px 8px;
+    border-radius: var(--radius-md);
+    display: inline-block;
+    width: fit-content;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  }
+
+  .name-col {
+    min-width: 280px;
+    max-width: 350px;
+  }
+
+  .name-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .company-name {
+    color: var(--color-text-primary);
+    font-weight: 600;
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .asset-class {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    font-weight: 700;
+    background: var(--color-surface);
+    padding: 2px 8px;
+    border-radius: var(--radius-md);
+    display: inline-block;
+    width: fit-content;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  }
+
+  .sector-col {
+    width: 160px;
+    color: var(--color-text-secondary);
+    font-weight: 500;
+  }
+
+  /* Enhanced Profit/Loss Colors */
+  .profit {
+    color: var(--color-success) !important;
+    font-weight: 700 !important;
+    text-shadow: 0 1px 2px rgb(16 185 129 / 0.1);
+  }
+
+  .loss {
+    color: var(--color-error) !important;
+    font-weight: 700 !important;
+    text-shadow: 0 1px 2px rgb(239 68 68 / 0.1);
+  }
+
+  .neutral {
+    color: var(--color-text-secondary) !important;
+    font-weight: 600 !important;
+  }
+
+  /* Modern Action Buttons */
+  .actions-col {
+    width: 140px;
+    text-align: center;
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: var(--space-2);
+    justify-content: center;
+    align-items: center;
+  }
+
+  .btn-sm {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    border-radius: var(--radius-md);
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 2px 4px -1px rgb(0 0 0 / 0.1);
+  }
+
+  .btn-success {
+    background: linear-gradient(135deg, var(--color-success) 0%, #059669 100%);
+    color: white;
+  }
+
+  .btn-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px -3px rgb(16 185 129 / 0.4);
+  }
+
+  .btn-danger {
+    background: linear-gradient(135deg, var(--color-error) 0%, #dc2626 100%);
+    color: white;
+  }
+
+  .btn-danger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px -3px rgb(239 68 68 / 0.4);
+  }
+
+  /* Modern Table Footer */
+  .table-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-6) var(--space-8);
+    background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface-elevated) 100%);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .selected-count {
+    font-size: var(--font-size-base);
+    color: var(--color-text-primary);
+    font-weight: 600;
+  }
+
+  .table-pagination {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .table-pagination #page-info {
+    font-size: var(--font-size-base);
+    color: var(--color-text-primary);
+    font-weight: 600;
+    min-width: 120px;
+    text-align: center;
+  }
+
+  /* Enhanced Button Styling */
+  .btn {
+    border: none;
+    border-radius: var(--radius-lg);
+    font-weight: 700;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    font-family: var(--font-family);
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  }
+
+  .btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.2);
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--color-primary) 0%, #1d4ed8 100%);
+    color: white;
+    padding: var(--space-3) var(--space-6);
+    font-size: var(--font-size-sm);
+  }
+
+  .btn-secondary {
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    border: 2px solid var(--color-border);
+    padding: var(--space-3) var(--space-6);
+    font-size: var(--font-size-sm);
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 2px 4px -1px rgb(0 0 0 / 0.1);
+  }
+
+  /* Responsive Design for Table */
+  @media (max-width: 1200px) {
+    .positions-controls {
+      flex-direction: column;
+      align-items: stretch;
+      gap: var(--space-3);
+    }
+    
+    .bulk-actions {
+      margin-left: 0;
+      justify-content: flex-end;
+    }
+    
+    .search-box {
+      min-width: auto;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .positions-section {
+      padding: 0 var(--space-4);
+    }
+    
+    .positions-header {
+      padding: var(--space-4);
+    }
+    
+    .positions-title {
+      flex-direction: column;
+    align-items: flex-start;
+      gap: var(--space-2);
+    }
+    
+    .positions-controls {
+      flex-direction: column;
+    }
+    
+    .bulk-actions {
+      flex-direction: column;
+    }
+    
+    .table-footer {
+      flex-direction: column;
+      gap: var(--space-3);
+      padding: var(--space-4);
+    }
+    
+    .table-pagination {
+      justify-content: center;
+    }
+    
+    /* Hide less important columns on mobile */
+    .positions-table .asset-class,
+    .positions-table .currency,
+    .sector-col {
+      display: none;
+    }
+  }
+
+  /* Order Execution Modal Styles */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-4);
+  }
+
+  .modal-container {
+    background: var(--color-surface-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    max-width: 600px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-6);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-surface);
+  }
+
+  .modal-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0;
+  }
+
+  .modal-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    color: var(--color-text-secondary);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .modal-close:hover {
+    background: var(--color-surface-elevated);
+    color: var(--color-text-primary);
+  }
+
+  .modal-body {
+    padding: var(--space-6);
+  }
+
+  .warning-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    background: var(--color-warning-bg);
+    border: 1px solid var(--color-warning);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-6);
+  }
+
+  .warning-notice svg {
+    color: var(--color-warning);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  
+  .warning-notice p {
+    margin: 0;
+    color: var(--color-warning);
+    font-size: var(--font-size-sm);
+    line-height: 1.4;
+			}
+			
+  .order-summary h4 {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 var(--space-4) 0;
+  }
+
+  .summary-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .stat-label {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    font-weight: 500;
+  }
+
+  .stat-value {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--color-text-primary);
+  }
+
+  .orders-list {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .order-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .order-item:last-child {
+    border-bottom: none;
+  }
+
+  .order-details {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .order-action {
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .order-action.buy {
+    background: var(--color-success-bg);
+    color: var(--color-success);
+  }
+
+  .order-action.sell {
+    background: var(--color-error-bg);
+    color: var(--color-error);
+  }
+
+  .order-quantity {
+    font-weight: 600;
+    color: var(--color-text-primary);
+  }
+
+  .order-symbol {
+    font-weight: 600;
+    color: var(--color-text-primary);
+    font-family: 'Monaco', 'Menlo', monospace;
+  }
+
+  .order-name {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+  }
+
+  .order-value {
+    display: flex;
+      flex-direction: column;
+    align-items: flex-end;
+    gap: var(--space-1);
+  }
+
+  .order-value .price {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+  }
+
+  .order-value .total {
+    font-weight: 600;
+    color: var(--color-text-primary);
+  }
+
+  .modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-3);
+    padding: var(--space-6);
+    border-top: 1px solid var(--color-border);
+    background: var(--color-surface);
+  }
+
+  .execute-confirm {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  /* Modern Quantity Input Styles */
+  .quantity-col {
+    width: 120px;
+    text-align: center;
+    padding: var(--space-2) !important;
+  }
+
+  .quantity-input {
+    width: 100px;
+    padding: var(--space-3) var(--space-2);
+    border: 2px solid var(--color-border);
+    background: var(--color-background);
+    color: var(--color-text-primary);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    text-align: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px -1px rgb(0 0 0 / 0.05);
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+  }
+
+  .quantity-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 4px rgb(37 99 235 / 0.15), 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    transform: scale(1.05);
+    background: var(--color-surface);
+  }
+
+  .quantity-input:invalid {
+    border-color: var(--color-error);
+    box-shadow: 0 0 0 4px rgb(239 68 68 / 0.15);
+  }
+
+  .quantity-input:hover {
+    border-color: var(--color-primary);
+    background: var(--color-surface);
+  }
+
+  .buy-qty-input:focus {
+    border-color: var(--color-success);
+    box-shadow: 0 0 0 4px rgb(16 185 129 / 0.15), 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  }
+
+  .sell-qty-input:focus {
+    border-color: var(--color-error);
+    box-shadow: 0 0 0 4px rgb(239 68 68 / 0.15), 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  }
+
+  /* Modern Execute Button Styles */
+  .execute-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--color-primary) 0%, #1d4ed8 100%);
+    color: white;
+    border: none;
+    border-radius: var(--radius-lg);
+    padding: var(--space-3) var(--space-5);
+    font-size: var(--font-size-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    box-shadow: 0 4px 6px -1px rgb(37 99 235 / 0.3);
+    transition: all 0.3s ease;
+    cursor: pointer;
+  }
+
+  .execute-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgb(37 99 235 / 0.4);
+    background: linear-gradient(135deg, #1d4ed8 0%, var(--color-primary) 100%);
+  }
+
+  .execute-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 2px 4px -1px rgb(0 0 0 / 0.1);
+    background: var(--color-border);
+  }
+
+  /* Animation for spinning icon */
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .animate-spin {
+    animation: spin 1s linear infinite;
+  }
+
+  /* Mobile responsiveness for modal */
+  @media (max-width: 768px) {
+    .modal-container {
+      margin: var(--space-4);
+      max-height: 95vh;
+    }
+
+    .summary-stats {
       grid-template-columns: 1fr;
+    }
+
+    .order-item {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--space-2);
+    }
+
+    .quantity-input {
+      width: 60px;
     }
 			}
 		</style>

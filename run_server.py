@@ -2,19 +2,39 @@
 """
 IBKR REST API Server Entry Point
 
-Simple entry point script for the IBKR REST API server.
-Uses the Application class for all startup logic.
+Simplified entry point that directly runs the Flask app.
 """
 import argparse
 import logging
+import os
 import sys
-
-from backend import Application
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
+
+logger = logging.getLogger(__name__)
+
+
+def validate_oauth_files(environment="live_trading"):
+    """Validate that required OAuth files exist."""
+    base_dir = Path(__file__).resolve().parent
+    oauth_dir = f"{environment}_oauth_files"
+    
+    required_files = [
+        base_dir / oauth_dir / "private_encryption.pem",
+        base_dir / oauth_dir / "private_signature.pem",
+    ]
+    
+    for file_path in required_files:
+        if not file_path.exists():
+            logger.error(f"Required OAuth file not found: {file_path}")
+            return False
+    
+    logger.info("✅ OAuth files verified")
+    return True
 
 
 def main():
@@ -34,10 +54,29 @@ def main():
     args = parser.parse_args()
 
     try:
-        # Create and run the application
-        app = Application(environment=args.env)
-        app.run(port=args.port, debug=args.debug)
+        # Set environment
+        os.environ["IBIND_TRADING_ENV"] = args.env
+        
+        # Validate OAuth files
+        if not validate_oauth_files(args.env):
+            raise FileNotFoundError("Required OAuth files are missing")
+        
+        # Import and run the Flask app
+        from backend.api import app
+        
+        # Set port
+        port = args.port or int(os.environ.get("PORT", 8080))
+        
+        logger.info(f"Starting IBKR REST API server:")
+        logger.info(f"  Environment: {args.env}")
+        logger.info(f"  Host: 0.0.0.0")
+        logger.info(f"  Port: {port}")
+        logger.info(f"  Debug: {args.debug}")
+        
+        # Start the Flask application
+        app.run(host="0.0.0.0", port=port, debug=args.debug)
         return 0
+        
     except Exception as e:
         logging.error(f"Failed to start server: {e}")
         return 1
