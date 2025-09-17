@@ -25,16 +25,24 @@ uv run python service.py start
 
 ### **Step 1: IBKR Credentials**
 
-1. **Get IBKR OAuth Access:**
-   - Log into IBKR Client Portal
-   - Go to Settings → API → Create API Key
-   - Enable "Live Trading" permissions
-   - Note down: `Consumer Key`, `Access Token`, `Access Token Secret`
+**⚠️ Important**: IBKR OAuth requires working with IBKR support and is more complex than typical API setups.
 
-2. **Generate OAuth Keys:**
+1. **Request OAuth Consumer Registration:**
+   - Contact IBKR API support to register as an OAuth consumer
+   - You'll receive a 25-character hexadecimal `Consumer Key`
+   - This process may take several business days
+
+2. **Generate RSA Key Pair:**
    ```bash
-   # Use IBKR's OAuth tool to generate RSA keys
-   # This creates: private_encryption.pem + private_signature.pem
+   # Generate private key for signatures
+   openssl genrsa -out private_signature.pem 2048
+   
+   # Generate private key for encryption  
+   openssl genrsa -out private_encryption.pem 2048
+   
+   # Generate public keys (send these to IBKR)
+   openssl rsa -in private_signature.pem -pubout -out public_signature.pem
+   openssl rsa -in private_encryption.pem -pubout -out public_encryption.pem
    ```
 
 3. **Create `config.json`:**
@@ -42,10 +50,10 @@ uv run python service.py start
    {
      "live_trading": {
        "oauth": {
-         "consumer_key": "YOUR_CONSUMER_KEY",
-         "access_token": "YOUR_ACCESS_TOKEN", 
-         "access_token_secret": "YOUR_ACCESS_TOKEN_SECRET",
-         "dh_prime": "YOUR_DH_PRIME",
+         "consumer_key": "YOUR_25_CHARACTER_CONSUMER_KEY",
+         "access_token": "YOUR_ACCESS_TOKEN",
+         "access_token_secret": "YOUR_ACCESS_TOKEN_SECRET", 
+         "dh_prime": "YOUR_DH_PRIME_VALUE",
          "realm": "limited_poa"
        }
      }
@@ -59,28 +67,50 @@ uv run python service.py start
    └── private_signature.pem
    ```
 
+**📚 Resources:**
+- [IBKR OAuth 1.0a Documentation](https://www.interactivebrokers.com/campus/ibkr-api-page/oauth-1-0a-extended/)
+- [Client Portal API Guide](https://www.interactivebrokers.com/campus/ibkr-api-page/web-api-trading/)
+
 ### **Step 2: Google Sheets Setup**
 
-1. **Create Service Account:**
+1. **Google Cloud Console Setup:**
    - Go to [Google Cloud Console](https://console.cloud.google.com)
-   - Create project → Enable Sheets API
-   - Create Service Account → Download JSON key
+   - Create a new project (or select existing one)
+   - Navigate to **APIs & Services → Library**
+   - Enable **Google Sheets API** and **Google Drive API**
 
-2. **Save Credentials:**
-   ```bash
-   # Save as: google_sheets_credentials.json
-   ```
+2. **Create Service Account:**
+   - Go to **IAM & Admin → Service Accounts**  
+   - Click **+ CREATE SERVICE ACCOUNT**
+   - Give it a name (e.g., "sheets-automation")
+   - Grant role: **Editor** (for Google Sheets access)
 
-3. **Create Google Sheet:**
+3. **Download Credentials:**
+   - Click on your service account → **Keys** tab
+   - **ADD KEY** → **Create new key** → **JSON**
+   - Download and save as `google_sheets_credentials.json` in project root
+
+4. **Create & Share Google Sheet:**
    - Create sheet with columns: `Status | Stock Symbol | Amount (USD) | Frequency | Log`
-   - Share sheet with service account email (from JSON)
+   - Click **Share** → Add service account email (from JSON file)
+   - Grant **Editor** permissions
    - Copy sheet URL
+
+**📚 Resources:**
+- [Google Sheets API Quickstart](https://developers.google.com/sheets/api/quickstart/python)
+- [Service Account Authentication](https://cloud.google.com/iam/docs/service-accounts-create)
 
 ### **Step 3: Discord Notifications**
 
 1. **Create Discord Webhook:**
-   - Discord Server → Channel Settings → Integrations → Webhooks
-   - Copy webhook URL
+   - Open your Discord server
+   - Right-click on the channel where you want notifications
+   - **Edit Channel** → **Integrations** → **Webhooks**
+   - Click **New Webhook** 
+   - Copy the webhook URL (starts with `https://discord.com/api/webhooks/...`)
+
+**📚 Resources:**
+- [Discord Webhook Setup Guide](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks)
 
 ### **Step 4: Environment Variables**
 
