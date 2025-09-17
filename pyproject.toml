@@ -22,7 +22,7 @@ dependencies = [
     "flask==3.0.3",
     "gspread>=6.2.0",
     "google-auth>=2.30.0",
-    "ibind==0.1.18",
+    "ibind[oauth]==0.1.18",
     "psutil>=6.1.0",
     "pycryptodome==3.19.1",
     "pytz>=2024.1",

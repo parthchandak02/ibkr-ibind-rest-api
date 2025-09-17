@@ -23,53 +23,60 @@ uv run python service.py start
 
 ## 🔧 **Complete Setup Guide**
 
-### **Step 1: IBKR Credentials**
+### **Step 1: IBKR OAuth 1.0a Setup**
 
-**⚠️ Important**: IBKR OAuth requires working with IBKR support and is more complex than typical API setups.
+**✅ Good News**: With ibind library, OAuth setup is much simpler than generic IBKR setup!
 
-1. **Request OAuth Consumer Registration:**
-   - Contact IBKR API support to register as an OAuth consumer
-   - You'll receive a 25-character hexadecimal `Consumer Key`
-   - This process may take several business days
+**Prerequisites:**
+- IBKR "Pro" account (individual accounts work too!)
+- `openssl` installed on your machine
 
-2. **Generate RSA Key Pair:**
+1. **Generate OAuth Keys:**
    ```bash
-   # Generate private key for signatures
+   # Generate all required keys
    openssl genrsa -out private_signature.pem 2048
-   
-   # Generate private key for encryption  
+   openssl rsa -in private_signature.pem -outform PEM -pubout -out public_signature.pem
    openssl genrsa -out private_encryption.pem 2048
-   
-   # Generate public keys (send these to IBKR)
-   openssl rsa -in private_signature.pem -pubout -out public_signature.pem
-   openssl rsa -in private_encryption.pem -pubout -out public_encryption.pem
+   openssl rsa -in private_encryption.pem -outform PEM -pubout -out public_encryption.pem
+   openssl dhparam -out dhparam.pem 2048
    ```
 
-3. **Create `config.json`:**
-   ```json
-   {
-     "live_trading": {
-       "oauth": {
-         "consumer_key": "YOUR_25_CHARACTER_CONSUMER_KEY",
-         "access_token": "YOUR_ACCESS_TOKEN",
-         "access_token_secret": "YOUR_ACCESS_TOKEN_SECRET", 
-         "dh_prime": "YOUR_DH_PRIME_VALUE",
-         "realm": "limited_poa"
-       }
-     }
-   }
+2. **IBKR OAuth Setup:**
+   - Visit: [IBKR OAuth Setup Page](https://ndcdyn.interactivebrokers.com/sso/Login?action=OAUTH&RL=1&ip2loc=US)
+   - **Consumer Key**: Choose your own 9-character password (A-Z only)
+   - **Upload Public Keys**: `public_signature.pem`, `public_encryption.pem`, `dhparam.pem`
+   - **Generate Tokens**: Copy Access Token & Access Token Secret (⚠️ won't reappear!)
+   - **Enable OAuth Access**: Toggle the switch
+
+3. **Extract DH Prime:**
+   ```python
+   # Save as extract_dh_prime.py and run
+   import subprocess, re
+   result = subprocess.run(["openssl", "dhparam", "-in", "dhparam.pem", "-text"], 
+                          capture_output=True, text=True).stdout
+   match = re.search(r"(?:prime|P):\s*((?:\s*[0-9a-fA-F:]+\s*)+)", result)
+   print(re.sub(r"[\s:]", "", match.group(1)) if match else "No prime found.")
    ```
 
-4. **Place OAuth Files:**
-   ```
-   live_trading_oauth_files/
-   ├── private_encryption.pem
-   └── private_signature.pem
+4. **Environment Variables:**
+   ```bash
+   export IBIND_USE_OAUTH=True
+   export IBIND_OAUTH1A_CONSUMER_KEY="YOUR_9_CHAR_KEY"
+   export IBIND_OAUTH1A_ACCESS_TOKEN="YOUR_ACCESS_TOKEN"
+   export IBIND_OAUTH1A_ACCESS_TOKEN_SECRET="YOUR_ACCESS_TOKEN_SECRET"
+   export IBIND_OAUTH1A_DH_PRIME="YOUR_DH_PRIME_HEX_STRING"
+   export IBIND_OAUTH1A_ENCRYPTION_KEY_FP="./private_encryption.pem"
+   export IBIND_OAUTH1A_SIGNATURE_KEY_FP="./private_signature.pem"
    ```
 
-**📚 Resources:**
-- [IBKR OAuth 1.0a Documentation](https://www.interactivebrokers.com/campus/ibkr-api-page/oauth-1-0a-extended/)
-- [Client Portal API Guide](https://www.interactivebrokers.com/campus/ibkr-api-page/web-api-trading/)
+5. **Install OAuth Dependencies:**
+   ```bash
+   uv add ibind[oauth]
+   ```
+
+**📚 Official Guide:**
+- [Voyz ibind OAuth 1.0a Wiki](https://github.com/Voyz/ibind/wiki/OAuth-1.0a) (Complete setup guide)
+- [ibind OAuth Example](https://github.com/Voyz/ibind/blob/master/examples/rest_08_oauth.py)
 
 ### **Step 2: Google Sheets Setup**
 
