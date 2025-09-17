@@ -21,7 +21,7 @@ class Config:
     def _load_config(self):
         """Load the configuration from the JSON file."""
         try:
-            with open(self.config_path, "r") as f:
+            with open(self.config_path) as f:
                 return json.load(f)
         except FileNotFoundError as e:
             raise FileNotFoundError(
@@ -33,7 +33,7 @@ class Config:
         """Get OAuth configuration with absolute file paths for the active environment."""
         env_key = self.environment
         if env_key not in self.config:
-            raise KeyError(f"Missing environment '{env_key}' in config.json")
+            raise KeyError(f"Missing environment '{env_key}' in config.json") from e
 
         oauth_config = dict(self.config[env_key].get("oauth", {}))
 
@@ -42,8 +42,12 @@ class Config:
         oauth_dir = f"{env_key}_oauth_files"
 
         # Only set default paths if not already provided
-        oauth_config.setdefault("encryption_key_path", str(base_dir / oauth_dir / "private_encryption.pem"))
-        oauth_config.setdefault("signature_key_path", str(base_dir / oauth_dir / "private_signature.pem"))
+        oauth_config.setdefault(
+            "encryption_key_path", str(base_dir / oauth_dir / "private_encryption.pem")
+        )
+        oauth_config.setdefault(
+            "signature_key_path", str(base_dir / oauth_dir / "private_signature.pem")
+        )
 
         return oauth_config
 
@@ -51,7 +55,7 @@ class Config:
         """Get API configuration for the active environment."""
         env_key = self.environment
         if env_key not in self.config:
-            raise KeyError(f"Missing environment '{env_key}' in config.json")
+            raise KeyError(f"Missing environment '{env_key}' in config.json") from e
         return self.config[env_key].get("api", {})
 
     def get_application_config(self):

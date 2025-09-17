@@ -17,10 +17,15 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
+    "apscheduler>=3.11.0",
     "click>=8.1.0",
     "flask==3.0.3",
+    "gspread>=6.2.0",
+    "google-auth>=2.30.0",
     "ibind==0.1.18",
+    "psutil>=6.1.0",
     "pycryptodome==3.19.1",
+    "pytz>=2024.1",
     "requests>=2.31.0",
     "rich>=13.0.0",
 ]

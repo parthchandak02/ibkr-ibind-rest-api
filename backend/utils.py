@@ -4,14 +4,14 @@ Utility functions for the ibind REST API.
 
 import logging
 import os
-import time
 import threading
+import time
 from pathlib import Path
 
 from ibind import IbkrClient
 from ibind.oauth.oauth1a import OAuth1aConfig
-# from ibind.support.errors import ExternalBrokerError  # Unused
 
+# from ibind.support.errors import ExternalBrokerError  # Unused
 from .config import Config
 
 # Initialize logging
@@ -22,8 +22,10 @@ logger = logging.getLogger(__name__)
 
 # --- Singleton IBKR Client --- #
 
+
 class SingletonIBKRClient:
     """A thread-safe singleton to manage the IBKR client connection per environment."""
+
     _clients_by_env = {}
     _lock = threading.Lock()
 
@@ -71,9 +73,11 @@ class SingletonIBKRClient:
         encryption_key_path = str(base_dir / oauth_dir / "private_encryption.pem")
         signature_key_path = str(base_dir / oauth_dir / "private_signature.pem")
 
-        if not os.path.exists(encryption_key_path) or not os.path.exists(signature_key_path):
+        if not os.path.exists(encryption_key_path) or not os.path.exists(
+            signature_key_path
+        ):
             logger.error("OAuth key files not found. Cannot create client.")
-            raise FileNotFoundError("OAuth key files not found.")
+            raise FileNotFoundError("OAuth key files not found.") from e
 
         oauth1a_config = OAuth1aConfig(
             access_token=oauth_config.get("access_token"),
@@ -94,7 +98,9 @@ class SingletonIBKRClient:
                 logger.info(
                     f"Connecting to IBKR API at {host} (attempt {attempt + 1}/{max_retries})"
                 )
-                client = IbkrClient(url=host, use_oauth=True, oauth_config=oauth1a_config)
+                client = IbkrClient(
+                    url=host, use_oauth=True, oauth_config=oauth1a_config
+                )
                 if client.check_health():
                     logger.info("Successfully connected to IBKR API.")
                     client.start_tickler()
@@ -107,7 +113,9 @@ class SingletonIBKRClient:
                 if attempt < max_retries - 1:
                     time.sleep(retry_delay * (attempt + 1))
 
-        logger.error(f"Could not connect to IBKR API after {max_retries} retries: {last_error}")
+        logger.error(
+            f"Could not connect to IBKR API after {max_retries} retries: {last_error}"
+        )
         raise last_error
 
     @staticmethod
@@ -122,29 +130,34 @@ class SingletonIBKRClient:
                 accounts = client.portfolio_accounts().data
                 if accounts:
                     client.account_id = accounts[0]["accountId"]
-                    logger.info(f"Using first available account ID: {client.account_id}")
+                    logger.info(
+                        f"Using first available account ID: {client.account_id}"
+                    )
                 else:
                     logger.warning("No accounts found for this session.")
             except Exception as e:
                 logger.error(f"Failed to automatically get account ID: {e}")
 
+
 # --- End Singleton --- #
+
 
 def get_ibkr_client(environment="live_trading"):
     """Public function to access the singleton client for the given environment."""
     return SingletonIBKRClient.get_instance(environment)
 
+
 def check_ibkr_health_status(environment: str | None = None):
     """Public function to check the health of the client for the given environment."""
     return SingletonIBKRClient.get_health(environment)
 
-def reset_ibkr_client(environment: str | None = None):
     """Reset the cached client for an environment (or all if None)."""
     with SingletonIBKRClient._lock:
         if environment:
             SingletonIBKRClient._clients_by_env.pop(environment, None)
         else:
             SingletonIBKRClient._clients_by_env.clear()
+
 
 # The old get_ibkr_client logic has been moved into the Singleton class.
 # The old caching functions are no longer needed.
