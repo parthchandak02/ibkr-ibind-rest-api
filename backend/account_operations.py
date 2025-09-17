@@ -8,17 +8,17 @@ ledger information, and position aggregation.
 import datetime
 import logging
 import time
-from typing import Dict, Any, List
+from typing import Any
 
 from .utils import get_ibkr_client
 
 logger = logging.getLogger(__name__)
 
 
-def get_complete_account_data() -> Dict[str, Any]:
+def get_complete_account_data() -> dict[str, Any]:
     """
     Get complete account data including positions, ledger, and account summary.
-    
+
     Returns:
         Dictionary containing all account information
     """
@@ -36,7 +36,7 @@ def get_complete_account_data() -> Dict[str, Any]:
 
     # Initialize account data structure
     account_data = {}
-    
+
     # Get basic account information
     account_data["accounts"] = client.portfolio_accounts().data
     account_data["selected_account"] = client.account_id
@@ -51,7 +51,7 @@ def get_complete_account_data() -> Dict[str, Any]:
 
     # Fetch all positions using pagination
     all_positions = fetch_all_positions_paginated()
-    
+
     account_data["positions"] = all_positions
     account_data["portfolio_summary"] = {
         "total_positions": len(all_positions),
@@ -61,20 +61,20 @@ def get_complete_account_data() -> Dict[str, Any]:
     return account_data
 
 
-def fetch_all_positions_paginated() -> List[Dict[str, Any]]:
+def fetch_all_positions_paginated() -> list[dict[str, Any]]:
     """
     Fetch all positions using pagination with detailed logging.
-        
+
     Returns:
         List of all positions
-        
+
     Raises:
         Exception: If IBKR client is not available
     """
     client = get_ibkr_client()
     if not client:
         raise Exception("IBKR client not available")
-        
+
     all_positions = []
     page = 0
 
@@ -99,29 +99,37 @@ def fetch_all_positions_paginated() -> List[Dict[str, Any]]:
                 # The API returns up to 100 items per page
                 # If fewer items returned, we've reached the last page
                 if len(current_page_positions) < 100:
-                    logger.info(f"Last page detected - fewer than 100 positions on page {page}")
+                    logger.info(
+                        f"Last page detected - fewer than 100 positions on page {page}"
+                    )
                     break
 
                 # If we got exactly 100 positions, try the next page
-                logger.info(f"Got exactly 100 positions on page {page}, checking next page")
+                logger.info(
+                    f"Got exactly 100 positions on page {page}, checking next page"
+                )
                 page += 1
                 time.sleep(0.5)  # Delay between requests
             else:
-                logger.info(f"No positions found on page {page} or unexpected data format")
+                logger.info(
+                    f"No positions found on page {page} or unexpected data format"
+                )
                 break
-                
+
         except Exception as page_error:
             logger.error(f"Error on page {page}: {page_error}")
             break
 
-    logger.info(f"Retrieved total of {len(all_positions)} positions across {page+1} pages")
+    logger.info(
+        f"Retrieved total of {len(all_positions)} positions across {page+1} pages"
+    )
     return all_positions
 
 
-def get_live_orders() -> Dict[str, Any]:
+def get_live_orders() -> dict[str, Any]:
     """
     Get all live orders for the account.
-    
+
     Returns:
         Dictionary containing orders and snapshot information
     """
@@ -134,24 +142,18 @@ def get_live_orders() -> Dict[str, Any]:
     # Check if we have a valid response with orders
     if response and hasattr(response, "data") and isinstance(response.data, dict):
         orders = response.data.get("orders", [])
-        return {
-            "orders": orders, 
-            "snapshot": response.data.get("snapshot", False)
-        }
+        return {"orders": orders, "snapshot": response.data.get("snapshot", False)}
     else:
-        return {
-            "orders": [], 
-            "snapshot": False
-        }
+        return {"orders": [], "snapshot": False}
 
 
-def get_order_details(order_id: str) -> Dict[str, Any]:
+def get_order_details(order_id: str) -> dict[str, Any]:
     """
     Get details for a specific order by its ID.
-    
+
     Args:
         order_id: The order ID to retrieve
-        
+
     Returns:
         Order details dictionary
     """
@@ -160,4 +162,4 @@ def get_order_details(order_id: str) -> Dict[str, Any]:
         raise Exception("IBKR client not available")
 
     order_details = client.order_status(order_id).data
-    return order_details 
+    return order_details

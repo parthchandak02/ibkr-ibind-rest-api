@@ -10,12 +10,12 @@ import datetime
 import io
 import logging
 import time
-from typing import List, Dict, Any
+from typing import Any
 
 from flask import Response
 
-from .utils import get_ibkr_client
 from .account_operations import fetch_all_positions_paginated
+from .utils import get_ibkr_client
 
 logger = logging.getLogger(__name__)
 
@@ -24,13 +24,13 @@ logger = logging.getLogger(__name__)
 # Now importing fetch_all_positions_paginated from account_operations module
 
 
-def format_position_for_csv(position: Dict[str, Any]) -> Dict[str, str]:
+def format_position_for_csv(position: dict[str, Any]) -> dict[str, str]:
     """
     Format a single position for CSV export.
-    
+
     Args:
         position: Position dictionary from IBKR API
-        
+
     Returns:
         Formatted dictionary for CSV writing
     """
@@ -79,7 +79,7 @@ def format_position_for_csv(position: Dict[str, Any]) -> Dict[str, str]:
 def generate_positions_csv() -> Response:
     """
     Generate a CSV file of all positions.
-    
+
     Returns:
         Flask Response with CSV data
     """
@@ -126,13 +126,13 @@ def generate_positions_csv() -> Response:
     return response
 
 
-def get_positions_with_limit(limit: int = 10) -> Dict[str, Any]:
+def get_positions_with_limit(limit: int = 10) -> dict[str, Any]:
     """
     Get positions with optional limit.
-    
+
     Args:
         limit: Maximum number of positions to return
-        
+
     Returns:
         Dictionary with positions and summary information
     """
@@ -145,7 +145,7 @@ def get_positions_with_limit(limit: int = 10) -> Dict[str, Any]:
             client = get_ibkr_client()
             if not client:
                 raise Exception("IBKR client not available")
-                
+
             response = client.positions(page=page)
             current_page_positions = response.data
 
@@ -177,4 +177,4 @@ def get_positions_with_limit(limit: int = 10) -> Dict[str, Any]:
     return {
         "summary": position_summary,
         "positions": positions_to_return,
-    } 
+    }

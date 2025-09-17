@@ -8,14 +8,9 @@ and can be tested independently.
 
 import datetime
 import logging
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from ibind import IbkrClient, make_order_request
-from ibind import QuestionType
-
-from .market_data import MarketDataError, get_current_price_for_symbol
-from .account_operations import fetch_all_positions_paginated
+from ibind import IbkrClient, QuestionType, make_order_request
 
 logger = logging.getLogger(__name__)
 
@@ -73,19 +68,26 @@ def resolve_symbol_to_conid(client: IbkrClient, symbol: str) -> str:
             if conid:  # If we already found a match, break
                 break
 
-            for stock_symbol, stock_list in stocks_data.items():
+            for _stock_symbol, stock_list in stocks_data.items():
                 for stock in stock_list:
                     if "contracts" in stock:
                         for contract in stock["contracts"]:
-                            if contract.get("isUS") and contract.get("exchange") == exchange:
+                            if (
+                                contract.get("isUS")
+                                and contract.get("exchange") == exchange
+                            ):
                                 conid = str(contract["conid"])
-                                logger.info(f"Selected US {exchange} conid {conid} for {symbol}")
+                                logger.info(
+                                    f"Selected US {exchange} conid {conid} for {symbol}"
+                                )
                                 return conid
 
         # If still no match, try any US exchange
         if not conid:
-            logger.info(f"No match on preferred exchanges, trying any US exchange for {symbol}")
-            for stock_symbol, stock_list in stocks_data.items():
+            logger.info(
+                f"No match on preferred exchanges, trying any US exchange for {symbol}"
+            )
+            for _stock_symbol, stock_list in stocks_data.items():
                 for stock in stock_list:
                     if "contracts" in stock:
                         for contract in stock["contracts"]:
@@ -145,8 +147,8 @@ def calculate_limit_price(current_price: float, side: str, percentage: float) ->
 
 
 def find_position_by_symbol(
-    positions: List[Dict[str, Any]], symbol: str, conid: str
-) -> Dict[str, Any]:
+    positions: list[dict[str, Any]], symbol: str, conid: str
+) -> dict[str, Any]:
     """
     Find a position by symbol or contract ID.
 
@@ -179,7 +181,7 @@ def find_position_by_symbol(
 
 
 def calculate_sell_quantity(
-    position: Dict[str, Any], percentage_of_position: float, symbol: str
+    position: dict[str, Any], percentage_of_position: float, symbol: str
 ) -> int:
     """
     Calculate quantity to sell based on percentage of current position.
@@ -213,7 +215,7 @@ def calculate_sell_quantity(
 def calculate_buy_quantity(dollar_amount: float, limit_price: float) -> int:
     """
     Calculate quantity to buy based on dollar amount and limit price.
-    
+
     DEPRECATED: Use calculate_buy_quantity_from_percentage for consistency.
 
     Args:
@@ -233,19 +235,21 @@ def calculate_buy_quantity(dollar_amount: float, limit_price: float) -> int:
     quantity_float = dollar_amount / limit_price
     quantity = max(1, int(quantity_float))  # Round down to be conservative
 
-    logger.info(f"Calculated buy quantity {quantity} from ${dollar_amount} at ${limit_price}")
+    logger.info(
+        f"Calculated buy quantity {quantity} from ${dollar_amount} at ${limit_price}"
+    )
     return quantity
 
 
 def calculate_buy_quantity_from_percentage(
-    buying_power: float, 
-    percentage_of_buying_power: float, 
-    limit_price: float, 
-    symbol: str
+    buying_power: float,
+    percentage_of_buying_power: float,
+    limit_price: float,
+    symbol: str,
 ) -> int:
     """
     Calculate BUY quantity based on percentage of buying power.
-    
+
     This provides consistent percentage-based position sizing for BUY orders,
     similar to how SELL orders use percentage_of_position.
 
@@ -262,18 +266,20 @@ def calculate_buy_quantity_from_percentage(
         ValueError: If percentage is invalid
     """
     if percentage_of_buying_power <= 0 or percentage_of_buying_power > 100:
-        raise ValueError(f"percentage_of_buying_power must be between 0 and 100, got {percentage_of_buying_power}")
-    
+        raise ValueError(
+            f"percentage_of_buying_power must be between 0 and 100, got {percentage_of_buying_power}"
+        )
+
     if buying_power <= 0:
         raise ValueError(f"buying_power must be greater than 0, got {buying_power}")
 
     # Calculate dollar amount to spend
     target_amount = buying_power * (percentage_of_buying_power / 100)
-    
+
     # Calculate quantity (round down to be conservative with buying power)
     quantity_float = target_amount / limit_price
     quantity = max(1, int(quantity_float))  # At least 1 share, round down
-    
+
     logger.info(
         f"Calculated buy quantity {quantity} for {symbol} from {percentage_of_buying_power}% "
         f"of buying power ${buying_power:,.2f} = ${target_amount:,.2f} at ${limit_price:.2f}"
@@ -289,7 +295,7 @@ def place_percentage_order(
     quantity: int,
     limit_price: float,
     time_in_force: str = "GTC",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Place a percentage-based limit order.
 
@@ -309,7 +315,9 @@ def place_percentage_order(
         Exception: If order placement fails
     """
     # Generate a unique order tag
-    order_tag = f'percentage-{symbol}-{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
+    order_tag = (
+        f'percentage-{symbol}-{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
+    )
 
     # Create the order request
     order_request = make_order_request(
@@ -349,7 +357,7 @@ def place_percentage_order(
         raise Exception(f"Error placing order: {result.error_message}")
 
 
-def validate_percentage_order_request(data: Dict[str, Any], side: str) -> None:
+def validate_percentage_order_request(data: dict[str, Any], side: str) -> None:
     """
     Validate percentage order request data.
 
@@ -375,29 +383,31 @@ def validate_percentage_order_request(data: Dict[str, Any], side: str) -> None:
         # Support both new percentage-based and legacy dollar-based approaches
         has_percentage = "percentage_of_buying_power" in data
         has_dollar_amount = "dollar_amount" in data
-        
+
         if not has_percentage and not has_dollar_amount:
             raise ValueError(
                 "Either 'percentage_of_buying_power' (recommended) or 'dollar_amount' (legacy) is required for BUY orders"
             )
-        
+
         if has_percentage and has_dollar_amount:
             raise ValueError(
                 "Cannot specify both 'percentage_of_buying_power' and 'dollar_amount'. Use 'percentage_of_buying_power' for consistent API."
             )
 
         if has_percentage:
-            percentage_of_buying_power = float(data.get("percentage_of_buying_power", 0))
+            percentage_of_buying_power = float(
+                data.get("percentage_of_buying_power", 0)
+            )
             if percentage_of_buying_power <= 0 or percentage_of_buying_power > 100:
                 raise ValueError("percentage_of_buying_power must be between 0 and 100")
-        
+
         if has_dollar_amount:
             dollar_amount = float(data.get("dollar_amount", 0))
             if dollar_amount <= 0:
                 raise ValueError("dollar_amount must be greater than 0")
 
 
-def cleanup_client_connection(client: Optional[IbkrClient]) -> None:
+def cleanup_client_connection(client: IbkrClient | None) -> None:
     """
     Safely cleanup IBKR client connection.
 
