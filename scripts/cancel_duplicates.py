@@ -19,8 +19,16 @@ from rich.live import Live
 from rich import box
 
 # Configuration
-API_URL = "http://localhost:8080"
-API_KEY = "YOUR_API_KEY_HERE"  # Replace with your actual API key
+# Add backend to path for config access
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from backend.config import Config
+
+# Get API URL from config
+config = Config()
+API_URL = config.get_api_base_url()
+API_KEY = None  # No API key needed for local automation
 
 console = Console()
 

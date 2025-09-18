@@ -20,7 +20,7 @@ Discord Notifications + Google Sheets Logging
 ### **🔧 Component Breakdown:**
 
 #### **Entry Points:**
-- **`run_server.py`** - Flask REST API server (port 8080)
+- **`run_server.py`** - Flask REST API server (port 8082)
 - **`service.py`** - Persistent background service manager
 
 #### **Core Backend (`backend/`):**
@@ -209,7 +209,7 @@ EST = pytz.timezone('US/Eastern')
 ## 🎯 **Security Analysis**
 
 ### **✅ Good Security:**
-- **Local-only API** (127.0.0.1:8080)
+- **Local-only API** (127.0.0.1:8082)
 - **No CORS** - reduces attack surface
 - **Service account authentication** for Google Sheets
 - **OAuth1a** for IBKR (industry standard)

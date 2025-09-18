@@ -21,7 +21,15 @@ from rich.align import Align
 from rich.columns import Columns
 from rich import box
 
-API_URL = "http://localhost:8080/orders"
+# Add backend to path for config access
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from backend.config import Config
+
+# Get API URL from config
+config = Config()
+API_URL = f"{config.get_api_base_url()}/orders"
 
 class OrdersConfig:
     """Configuration for the orders dashboard"""

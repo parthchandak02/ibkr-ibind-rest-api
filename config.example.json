@@ -36,12 +36,12 @@
     "webhook_url": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN"
   },
   "oauth_keys": {
-    "encryption_key_path": "./private_encryption.pem",
-    "signature_key_path": "./private_signature.pem"
+    "encryption_key_path": "./live_trading_oauth_files/private_encryption.pem",
+    "signature_key_path": "./live_trading_oauth_files/private_signature.pem"
   },
   "settings": {
     "trading_environment": "live_trading",
-    "api_port": 8080,
+    "api_port": 8082,
     "service_port": 8081,
     "log_level": "INFO"
   }

@@ -60,8 +60,8 @@ uv run python service.py start
 
 4. **OAuth Files Placement:**
    ```bash
-   # Place private keys in project root
-   ls -la private_*.pem
+   # Place private keys in live_trading_oauth_files directory
+   ls -la live_trading_oauth_files/private_*.pem
    # Should show: private_encryption.pem, private_signature.pem
    ```
 
@@ -162,8 +162,8 @@ uv run python service.py status
 ### **🎯 Final Verification:**
 ```bash
 # Check all systems
-curl http://127.0.0.1:8080/health                    # API health
-curl http://127.0.0.1:8081/service/status | head -20 # Service status
+    curl http://127.0.0.1:8082/health                    # API health
+    curl http://127.0.0.1:8081/service/status | head -20 # Service status
 
 # If both return healthy JSON responses, you're ready! 🚀
 ```
@@ -230,13 +230,13 @@ uv run python service.py execute
 
 ### **Example Usage:**
 ```bash
-# Place order
-curl -X POST http://127.0.0.1:8080/order/symbol \
-  -H "Content-Type: application/json" \
-  -d '{"symbol":"AAPL","side":"BUY","quantity":1,"order_type":"MKT"}'
+    # Place order
+    curl -X POST http://127.0.0.1:8082/order/symbol \
+      -H "Content-Type: application/json" \
+      -d '{"symbol":"AAPL","side":"BUY","quantity":1,"order_type":"MKT"}'
 
-# Trigger recurring orders
-curl -X POST http://127.0.0.1:8080/recurring/execute
+    # Trigger recurring orders
+    curl -X POST http://127.0.0.1:8082/recurring/execute
 ```
 
 ---
@@ -351,7 +351,7 @@ uv run python tests/test_recurring_system.py
 ### **Health Checks:**
 ```bash
 # API health
-curl http://127.0.0.1:8080/health
+    curl http://127.0.0.1:8082/health
 
 # Service status  
 curl http://127.0.0.1:8081/service/status

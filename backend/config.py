@@ -92,6 +92,18 @@ class Config:
     def get_settings(self):
         """Get general settings."""
         return self.config.get("settings", {})
+    
+    def get_api_base_url(self):
+        """Get the complete API base URL."""
+        settings = self.get_settings()
+        port = settings["api_port"]  # No fallback - config.json required
+        return f"http://127.0.0.1:{port}"
+    
+    def get_service_base_url(self):
+        """Get the complete service base URL."""
+        settings = self.get_settings()
+        port = settings["service_port"]  # No fallback - config.json required
+        return f"http://127.0.0.1:{port}"
 
     def get_complete_config(self):
         """Get complete configuration as a dictionary for the active environment."""

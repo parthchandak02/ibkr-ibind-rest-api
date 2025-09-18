@@ -64,7 +64,7 @@ Your sheet at: https://docs.google.com/spreadsheets/d/1CwyNMN_YRhU5IaYaG1OXaBGzg
 uv run python tests/test_recurring_system.py
 
 # Manual execution test
-curl -X POST http://127.0.0.1:8080/recurring/execute
+curl -X POST http://127.0.0.1:8082/recurring/execute
 ```
 
 ### **2. Set Up Automation**
@@ -79,13 +79,13 @@ uv run python setup_cron.py
 ### **3. Monitor Operations**
 ```bash
 # Check system status
-curl http://127.0.0.1:8080/recurring/status
+curl http://127.0.0.1:8082/recurring/status
 
 # View logs
 tail -f logs/recurring_orders.log
 
 # Test Discord notifications
-curl -X POST http://127.0.0.1:8080/recurring/test-notification
+curl -X POST http://127.0.0.1:8082/recurring/test-notification
 ```
 
 ---
