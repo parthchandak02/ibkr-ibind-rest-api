@@ -66,6 +66,33 @@ class Config:
         """Return True when the active environment is paper trading."""
         return self.environment == "paper_trading"
 
+    def get(self, key, default=None):
+        """Get any configuration value by key."""
+        return self.config.get(key, default)
+
+    def get_google_sheets_config(self):
+        """Get Google Sheets configuration."""
+        return self.config.get("google_sheets", {})
+
+    def get_discord_config(self):
+        """Get Discord configuration."""
+        return self.config.get("discord", {})
+
+    def get_oauth_keys_config(self):
+        """Get OAuth keys file paths configuration."""
+        oauth_keys = self.config.get("oauth_keys", {})
+        base_dir = Path(__file__).resolve().parent.parent
+        
+        # Provide defaults if not specified
+        oauth_keys.setdefault("encryption_key_path", str(base_dir / "private_encryption.pem"))
+        oauth_keys.setdefault("signature_key_path", str(base_dir / "private_signature.pem"))
+        
+        return oauth_keys
+
+    def get_settings(self):
+        """Get general settings."""
+        return self.config.get("settings", {})
+
     def get_complete_config(self):
         """Get complete configuration as a dictionary for the active environment."""
         return {
@@ -73,4 +100,8 @@ class Config:
             "oauth": self.get_oauth_config(),
             "api": self.get_api_config(),
             "application": self.get_application_config(),
+            "google_sheets": self.get_google_sheets_config(),
+            "discord": self.get_discord_config(),
+            "oauth_keys": self.get_oauth_keys_config(),
+            "settings": self.get_settings(),
         }

@@ -19,11 +19,10 @@ logger = logging.getLogger(__name__)
 class SheetsIntegration:
     """Google Sheets integration for IBKR trading data."""
 
-    def __init__(self, credentials_file: str = None):
+    def __init__(self, credentials_file: str = None, credentials_dict: dict = None):
         """Initialize Google Sheets client."""
-        self.credentials_file = credentials_file or os.getenv(
-            "GOOGLE_SHEETS_CREDENTIALS", "google_sheets_credentials.json"
-        )
+        self.credentials_file = credentials_file
+        self.credentials_dict = credentials_dict
         self.scopes = [
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/drive",
@@ -34,14 +33,23 @@ class SheetsIntegration:
     def _authenticate(self):
         """Authenticate with Google Sheets API."""
         try:
-            if not os.path.exists(self.credentials_file):
+            if self.credentials_dict:
+                # Use credentials from config.json
+                credentials = Credentials.from_service_account_info(
+                    self.credentials_dict, scopes=self.scopes
+                )
+                logger.info("Using Google Sheets credentials from config.json")
+            elif self.credentials_file and os.path.exists(self.credentials_file):
+                # Fallback to separate credentials file
+                credentials = Credentials.from_service_account_file(
+                    self.credentials_file, scopes=self.scopes
+                )
+                logger.info(f"Using Google Sheets credentials from {self.credentials_file}")
+            else:
                 raise FileNotFoundError(
-                    f"Google Sheets credentials file not found: {self.credentials_file}"
+                    "Google Sheets credentials not found in config.json or credentials file"
                 )
 
-            credentials = Credentials.from_service_account_file(
-                self.credentials_file, scopes=self.scopes
-            )
             self.client = gspread.authorize(credentials)
             logger.info("Successfully authenticated with Google Sheets API")
 
@@ -209,7 +217,20 @@ class SheetsIntegration:
 # Convenience function for quick setup
 def get_sheets_client(credentials_file: str = None) -> SheetsIntegration:
     """Get authenticated Google Sheets client."""
-    return SheetsIntegration(credentials_file)
+    from .config import Config
+    
+    config = Config()
+    google_sheets_config = config.get_google_sheets_config()
+    credentials_dict = google_sheets_config.get("credentials")
+    
+    # Fallback to environment variable or parameter for credentials file
+    if not credentials_dict:
+        credentials_file = credentials_file or os.getenv("GOOGLE_SHEETS_CREDENTIALS_PATH", "google_sheets_credentials.json")
+    
+    return SheetsIntegration(
+        credentials_file=credentials_file if not credentials_dict else None,
+        credentials_dict=credentials_dict
+    )
 
 
 # Example usage functions

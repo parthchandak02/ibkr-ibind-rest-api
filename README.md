@@ -65,11 +65,7 @@ uv run python service.py start
    # Should show: private_encryption.pem, private_signature.pem
    ```
 
-5. **Dependencies Already Included:**
-   ```bash
-   # OAuth dependencies are already in pyproject.toml
-   # No additional installation needed after 'uv sync'
-   ```
+**Note**: File paths are automatically configured in `config.json` - no manual path setup needed!
 
 **📚 Official Guide:**
 - [Voyz ibind OAuth 1.0a Wiki](https://github.com/Voyz/ibind/wiki/OAuth-1.0a) (Complete setup guide)
@@ -92,13 +88,17 @@ uv run python service.py start
 3. **Download Credentials:**
    - Click on your service account → **Keys** tab
    - **ADD KEY** → **Create new key** → **JSON**
-   - Download and save as `google_sheets_credentials.json` in project root
+   - **Copy the JSON content** (don't save as separate file)
 
 4. **Create & Share Google Sheet:**
    - Create sheet with columns: `Status | Stock Symbol | Amount (USD) | Frequency | Log`
-   - Click **Share** → Add service account email (from JSON file)
+   - Click **Share** → Add service account email (from JSON)
    - Grant **Editor** permissions
    - Copy sheet URL
+
+5. **Add to config.json:**
+   - Paste the JSON credentials directly into `config.json` under `google_sheets.credentials`
+   - Add your sheet URL to `google_sheets.spreadsheet_url`
 
 **📚 Resources:**
 - [Google Sheets API Quickstart](https://developers.google.com/sheets/api/quickstart/python)
@@ -113,37 +113,35 @@ uv run python service.py start
    - Click **New Webhook** 
    - Copy the webhook URL (starts with `https://discord.com/api/webhooks/...`)
 
+2. **Add to config.json:**
+   - Paste webhook URL into `config.json` under `discord.webhook_url`
+
 **📚 Resources:**
 - [Discord Webhook Setup Guide](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks)
 
-### **Step 4: Configure All Environment Variables**
+### **Step 4: Create config.json File**
 
-Create a `.env` file or export these variables:
+Copy `config.example.json` to `config.json` and fill in your credentials:
 
 ```bash
-# IBKR OAuth 1.0a Settings
-export IBIND_USE_OAUTH=True
-export IBIND_OAUTH1A_CONSUMER_KEY="YOUR_9_CHAR_KEY"
-export IBIND_OAUTH1A_ACCESS_TOKEN="YOUR_ACCESS_TOKEN"
-export IBIND_OAUTH1A_ACCESS_TOKEN_SECRET="YOUR_ACCESS_TOKEN_SECRET"
-export IBIND_OAUTH1A_DH_PRIME="YOUR_DH_PRIME_HEX_STRING"
-export IBIND_OAUTH1A_ENCRYPTION_KEY_FP="./private_encryption.pem"
-export IBIND_OAUTH1A_SIGNATURE_KEY_FP="./private_signature.pem"
-
-# Google Sheets & Discord Integration
-export GOOGLE_SHEET_URL="https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit"
-export DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/YOUR_WEBHOOK"
-export GOOGLE_SHEETS_CREDENTIALS_PATH="./google_sheets_credentials.json"
-
-# Trading Environment
-export IBIND_TRADING_ENV="live_trading"  # or "paper_trading"
+cp config.example.json config.json
 ```
+
+Edit `config.json` with your actual credentials. **This single file contains everything:**
+
+- IBKR OAuth credentials (consumer key, access tokens, DH prime)
+- Google Sheets service account credentials (no separate JSON file needed!)
+- Discord webhook URL
+- Google Sheet URL  
+- All settings and configurations
+
+**✅ No environment variables needed!** Everything is in one config file.
 
 ### **Step 5: Verification & Launch**
 
 ```bash
-# 1. Verify environment setup
-uv run python -c "import os; print('✅ OAuth vars set' if os.getenv('IBIND_USE_OAUTH') else '❌ OAuth vars missing')"
+# 1. Verify config.json exists and is valid
+uv run python -c "from backend.config import Config; c=Config(); print('✅ config.json loaded successfully')"
 
 # 2. Test IBKR connection
 uv run python -c "from backend.utils import get_ibkr_client; print('✅ IBKR connected' if get_ibkr_client() else '❌ IBKR failed')"
@@ -302,11 +300,13 @@ ibkr-ibind-rest-api/
 ├── run_server.py               # API server
 ├── service.py                  # Service manager
 ├── pyproject.toml             # Dependencies & project config
-├── google_sheets_credentials.json  # Google Sheets service account key
+├── config.json                # 🎯 ALL CREDENTIALS (IBKR, Sheets, Discord)
+├── config.example.json        # Template with examples
 ├── private_encryption.pem      # IBKR OAuth private key
-├── private_signature.pem       # IBKR OAuth private key  
-└── .env                       # Environment variables (you create)
+└── private_signature.pem       # IBKR OAuth private key
 ```
+
+**✅ Simplified**: Only 2 credential files needed (config.json + private keys)
 
 ---
 
@@ -327,26 +327,26 @@ uv run python tests/test_recurring_system.py
 ### **Common Issues:**
 
 1. **"IBKR client not available"**
-   - ✅ Check OAuth environment variables are set
+   - ✅ Check `config.json` has complete IBKR OAuth section
    - ✅ Verify `private_encryption.pem` and `private_signature.pem` exist in project root
    - ✅ Confirm OAuth access is enabled in IBKR portal
-   - ✅ Try: `uv run python -c "import os; print([k for k in os.environ if 'IBIND' in k])"`
+   - ✅ Test: `uv run python -c "from backend.config import Config; print(Config().get_oauth_config())"`
 
 2. **"Google Sheets authentication failed"**
-   - ✅ Check `google_sheets_credentials.json` exists in project root
+   - ✅ Check `config.json` has complete `google_sheets.credentials` section
    - ✅ Verify service account email has editor access to your sheet
-   - ✅ Confirm `GOOGLE_SHEETS_CREDENTIALS_PATH` environment variable is set
-   - ✅ Test: `ls -la google_sheets_credentials.json`
+   - ✅ Confirm spreadsheet URL is in `config.json`
+   - ✅ Test: `uv run python -c "from backend.config import Config; print(Config().get_google_sheets_config())"`
 
 3. **"Service not running"**
    - ✅ Check: `uv run python service.py status`
    - ✅ View logs: `uv run python service.py logs`
    - ✅ Restart: `uv run python service.py restart`
 
-4. **"Environment variables not found"**
-   - ✅ Source your `.env` file: `source .env`
-   - ✅ Or export variables in current shell session
-   - ✅ Check: `echo $IBIND_USE_OAUTH` (should show "True")
+4. **"Configuration file errors"**
+   - ✅ Check `config.json` syntax: `python -m json.tool config.json`
+   - ✅ Verify all required sections exist
+   - ✅ Compare with `config.example.json` structure
 
 ### **Health Checks:**
 ```bash

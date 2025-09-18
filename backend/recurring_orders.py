@@ -35,8 +35,16 @@ from ibind import make_order_request, QuestionType
 logger = logging.getLogger(__name__)
 
 # --- Configuration ---
-DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1408322306819756062/NjbdYcIDxV4D814pIJCcP1xvuDwKz-AiB1Kp_WrGzqzVMXSYLQC7M-ApwBTFKmhJU1DL"
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1CwyNMN_YRhU5IaYaG1OXaBGzgoYkBtF5rc9sO9Nyw48/edit"
+from .config import Config
+
+# Load configuration
+config = Config()
+google_sheets_config = config.get_google_sheets_config()
+discord_config = config.get_discord_config()
+settings = config.get_settings()
+
+DISCORD_WEBHOOK_URL = discord_config.get("webhook_url", os.getenv("DISCORD_WEBHOOK_URL"))
+SHEET_URL = google_sheets_config.get("spreadsheet_url", os.getenv("GOOGLE_SHEET_URL"))
 EST = pytz.timezone('US/Eastern')
 
 # Scheduling Configuration
