@@ -1,0 +1,48 @@
+{
+  "live_trading": {
+    "oauth": {
+      "consumer_key": "YOUR_9_CHAR_CONSUMER_KEY",
+      "access_token": "YOUR_ACCESS_TOKEN",
+      "access_token_secret": "YOUR_ACCESS_TOKEN_SECRET",
+      "dh_prime": "YOUR_DH_PRIME_HEX_STRING",
+      "realm": "limited_poa"
+    }
+  },
+  "paper_trading": {
+    "oauth": {
+      "consumer_key": "YOUR_PAPER_CONSUMER_KEY",
+      "access_token": "YOUR_PAPER_ACCESS_TOKEN", 
+      "access_token_secret": "YOUR_PAPER_ACCESS_TOKEN_SECRET",
+      "dh_prime": "YOUR_PAPER_DH_PRIME_HEX_STRING",
+      "realm": "limited_poa"
+    }
+  },
+  "google_sheets": {
+    "credentials": {
+      "type": "service_account",
+      "project_id": "your-project-id",
+      "private_key_id": "your-private-key-id",
+      "private_key": "-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----\n",
+      "client_email": "your-service-account@your-project.iam.gserviceaccount.com",
+      "client_id": "your-client-id",
+      "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+      "token_uri": "https://oauth2.googleapis.com/token",
+      "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+      "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/your-service-account%40your-project.iam.gserviceaccount.com"
+    },
+    "spreadsheet_url": "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit"
+  },
+  "discord": {
+    "webhook_url": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN"
+  },
+  "oauth_keys": {
+    "encryption_key_path": "./private_encryption.pem",
+    "signature_key_path": "./private_signature.pem"
+  },
+  "settings": {
+    "trading_environment": "live_trading",
+    "api_port": 8080,
+    "service_port": 8081,
+    "log_level": "INFO"
+  }
+}
