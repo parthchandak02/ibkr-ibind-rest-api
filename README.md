@@ -28,11 +28,15 @@ uv sync
 cp config.example.json config.json
 # Edit config.json with your credentials
 
-# Start system
+# Start API server (required)
+uv run python run_server.py &
+
+# Start background service
 uv run python service.py start
 
-# Verify running
+# Verify both running
 curl http://127.0.0.1:8082/health
+curl http://127.0.0.1:8081/service/status
 ```
 
 **Your orders execute automatically at 9 AM EST daily/weekly/monthly.**
@@ -102,10 +106,17 @@ Edit `config.json` with your credentials:
 
 ### Service Management
 ```bash
-uv run python service.py start    # Start automated system
-uv run python service.py status   # Check if running
-uv run python service.py stop     # Stop system
-uv run python service.py logs     # View execution logs
+# Start complete system
+uv run python run_server.py &     # Start API server (port 8082)
+uv run python service.py start    # Start background service (port 8081)
+
+# Check status
+uv run python service.py status   # Background service status
+curl http://127.0.0.1:8082/health  # API server health
+
+# Stop system
+uv run python service.py stop     # Stop background service
+pkill -f run_server.py            # Stop API server
 ```
 
 ### Manual Execution
