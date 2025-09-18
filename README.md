@@ -29,7 +29,7 @@ cp config.example.json config.json
 # Edit config.json with your credentials
 
 # Start API server (required)
-uv run python run_server.py &
+uv run python run_server.py & uv run python service.py start
 
 # Start background service
 uv run python service.py start
