@@ -27,17 +27,20 @@ from apscheduler.triggers.cron import CronTrigger
 from flask import Flask, jsonify
 from threading import Thread
 
-# Add backend to path
-sys.path.append(str(Path(__file__).parent.parent / "backend"))
+# Add project root to path so backend module can be found
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
 from backend.recurring_orders import RecurringOrdersManager, RecurringOrdersError
 
-# Configure logging
+# Configure logging with absolute paths
+logs_dir = project_root / "logs"
+logs_dir.mkdir(exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler("logs/recurring_service.log"),
+        logging.FileHandler(logs_dir / "recurring_service.log"),
         logging.StreamHandler()
     ]
 )
