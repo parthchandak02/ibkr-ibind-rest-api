@@ -182,11 +182,14 @@ class RecurringOrdersService:
     def start_status_api(self):
         """Start the Flask status API in a separate thread."""
         def run_flask():
-            self.flask_app.run(host='127.0.0.1', port=8081, debug=False, use_reloader=False)
+            from backend.config import Config
+            config = Config()
+            port = config.get_settings()["service_port"]  # No fallback - config.json required
+            self.flask_app.run(host='127.0.0.1', port=port, debug=False, use_reloader=False)
         
         self.flask_thread = Thread(target=run_flask, daemon=True)
         self.flask_thread.start()
-        logger.info("📊 Status API started on http://127.0.0.1:8081")
+        logger.info(f"📊 Status API started on http://127.0.0.1:{port}")
     
     def execute_daily_check(self, manual=False):
         """Execute the daily recurring orders check."""
@@ -291,7 +294,7 @@ class RecurringOrdersService:
                         "🚀 **IBKR Recurring Orders Service Started**",
                         f"⏰ Started at: {self.startup_time.strftime('%Y-%m-%d %H:%M:%S EST')}",
                         "📅 Next execution: Tomorrow 9:00 AM EST",
-                        "📊 Status API: http://127.0.0.1:8081/service/status"
+                        f"📊 Status API: http://127.0.0.1:{config.get_settings()['service_port']}/service/status"
                     ],
                     execution_details=None
                 )

@@ -47,7 +47,7 @@ def main():
         help="Trading environment (only live_trading is supported)",
     )
     parser.add_argument(
-        "--port", type=int, help="Port to run the server on (defaults to PORT env var or 8080)"
+        "--port", type=int, help="Port to run the server on (overrides config.json api_port)"
     )
     parser.add_argument("--debug", action="store_true", help="Run in debug mode")
 
@@ -63,9 +63,13 @@ def main():
         
         # Import and run the Flask app
         from backend.api import app
+        from backend.config import Config
         
-        # Set port
-        port = args.port or int(os.environ.get("PORT", 8080))
+        config = Config()
+        settings = config.get_settings()
+        
+        # Set port - command line arg overrides config.json (no other fallbacks)
+        port = args.port or settings["api_port"]  # No fallback - config.json required
         
         logger.info(f"Starting IBKR REST API server:")
         logger.info(f"  Environment: {args.env}")

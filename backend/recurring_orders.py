@@ -9,7 +9,7 @@ Features:
 - APScheduler for robust scheduling
 - Discord webhook notifications  
 - Google Sheets integration for order management
-- IBKR API integration for order execution
+- API server integration for order execution (via HTTP requests)
 - Comprehensive logging and error handling
 """
 
@@ -27,10 +27,7 @@ from apscheduler.triggers.cron import CronTrigger
 # Add backend to path for imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from .utils import get_ibkr_client
 from .sheets_integration import get_sheets_client
-from .trading_operations import resolve_symbol_to_conid, SymbolResolutionError
-from ibind import make_order_request, QuestionType
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +42,7 @@ settings = config.get_settings()
 
 DISCORD_WEBHOOK_URL = discord_config.get("webhook_url", os.getenv("DISCORD_WEBHOOK_URL"))
 SHEET_URL = google_sheets_config.get("spreadsheet_url", os.getenv("GOOGLE_SHEET_URL"))
+API_SERVER_BASE_URL = config.get_api_base_url()
 EST = pytz.timezone('US/Eastern')
 
 # Scheduling Configuration
@@ -65,36 +63,36 @@ class RecurringOrdersManager:
     Manages automated recurring orders from Google Sheets.
     
     Handles scheduling, execution, logging, and notifications.
+    Uses API server for order execution.
     """
     
-    def __init__(self, sheet_url: str = SHEET_URL, discord_webhook: str = DISCORD_WEBHOOK_URL):
+    def __init__(self, sheet_url: str = SHEET_URL, discord_webhook: str = DISCORD_WEBHOOK_URL, api_base_url: str = API_SERVER_BASE_URL):
         self.sheet_url = sheet_url
         self.discord_webhook = discord_webhook
+        self.api_base_url = api_base_url
         self.scheduler = None
         self.sheets_client = None
-        self.ibkr_client = None
         
         self._initialize_clients()
     
     def _initialize_clients(self):
-        """Initialize Google Sheets and IBKR clients."""
+        """Initialize Google Sheets client and verify API server connection."""
         try:
             self.sheets_client = get_sheets_client()
-            self.ibkr_client = get_ibkr_client()
             
-            if not self.ibkr_client:
-                raise RecurringOrdersError("IBKR client initialization failed")
-                
-            # Ensure account ID is set
-            if not self.ibkr_client.account_id:
-                accounts = self.ibkr_client.portfolio_accounts().data
-                if accounts and len(accounts) > 0:
-                    self.ibkr_client.account_id = accounts[0]["accountId"]
-                else:
-                    raise RecurringOrdersError("No IBKR account ID available")
+            # Test API server connection
+            health_response = requests.get(f"{self.api_base_url}/health", timeout=10)
+            health_response.raise_for_status()
+            health_data = health_response.json()
+            
+            if not health_data.get("ibkr_connected"):
+                raise RecurringOrdersError("API server reports IBKR not connected")
                     
-            logger.info("Successfully initialized all clients")
+            logger.info("Successfully initialized Google Sheets client and verified API server connection")
             
+        except requests.exceptions.RequestException as e:
+            logger.error(f"API server connection failed: {e}")
+            raise RecurringOrdersError(f"Failed to connect to API server at {self.api_base_url}: {e}") from e
         except Exception as e:
             logger.error(f"Client initialization failed: {e}")
             raise RecurringOrdersError(f"Failed to initialize clients: {e}") from e
@@ -153,7 +151,7 @@ class RecurringOrdersManager:
     
     def execute_order(self, order: Dict) -> Tuple[bool, str, Optional[str], Optional[Dict]]:
         """
-        Execute a single recurring order with detailed tracking.
+        Execute a single recurring order via API server.
         
         Args:
             order: Order dictionary from Google Sheets
@@ -171,83 +169,106 @@ class RecurringOrdersManager:
         }
         
         try:
-            # Resolve symbol to contract ID
-            conid = resolve_symbol_to_conid(self.ibkr_client, symbol)
-            logger.info(f"Resolved {symbol} to conid: {conid}")
-            execution_details["conid"] = conid
-            
-            # Get current market price for better quantity calculation
+            # Get current market price for informational purposes (not needed for order)
             try:
-                from .market_data import get_current_price_for_symbol
-                current_price = get_current_price_for_symbol(symbol, conid)
-                execution_details["market_price"] = current_price
+                price_url = f"{self.api_base_url}/market-data/current-price/{symbol}"
+                price_response = requests.get(price_url, timeout=10)
                 
-                # Calculate quantity based on current price
-                quantity = max(1, int(amount_usd / current_price))
-                actual_cost = quantity * current_price
-                execution_details["calculated_quantity"] = quantity
-                execution_details["estimated_cost"] = actual_cost
-                
+                if price_response.status_code == 200:
+                    price_data = price_response.json()
+                    current_price = price_data.get('price', 0)
+                    execution_details["market_price"] = current_price
+                    
+                    # Calculate estimated fractional shares for display
+                    if current_price > 0:
+                        estimated_shares = amount_usd / current_price
+                        execution_details["estimated_shares"] = estimated_shares
+                    else:
+                        execution_details["estimated_shares"] = 0
+                        
+                    execution_details["exact_dollar_amount"] = amount_usd
+                else:
+                    logger.warning(f"Could not get current price for {symbol} from API")
+                    execution_details["market_price"] = None
+                    execution_details["estimated_shares"] = None
+                    execution_details["exact_dollar_amount"] = amount_usd
+                    
             except Exception as price_error:
                 logger.warning(f"Could not get current price for {symbol}: {price_error}")
-                # Fallback to simple calculation
-                quantity = max(1, int(amount_usd / 100))  # Rough estimate
                 execution_details["market_price"] = None
-                execution_details["calculated_quantity"] = quantity
-                execution_details["estimated_cost"] = amount_usd
+                execution_details["estimated_shares"] = None
+                execution_details["exact_dollar_amount"] = amount_usd
             
             # Create order tag with timestamp
             order_tag = f'recurring-{symbol}-{datetime.now().strftime("%Y%m%d%H%M%S")}'
             execution_details["order_tag"] = order_tag
             
-            order_request = make_order_request(
-                conid=int(conid),
-                side="BUY",
-                quantity=quantity,
-                order_type="MKT",
-                acct_id=self.ibkr_client.account_id,
-                coid=order_tag,
-                tif="DAY"
-            )
-            
-            answers = {
-                QuestionType.UNFORESEEN_NEW_QUESTION: True,
-                QuestionType.MARKET_ORDER_CONFIRMATION: True,
+            # Place order via API server using cash quantity for exact dollar investment
+            order_payload = {
+                "symbol": symbol,
+                "side": "BUY", 
+                "cash_qty": amount_usd,  # Use cash quantity for exact dollar amount
+                "order_type": "MKT",
+                "tif": "DAY"
             }
             
-            # Execute the order
-            response = self.ibkr_client.place_order(order_request, answers).data
-            execution_details["ibkr_response"] = response
+            order_url = f"{self.api_base_url}/order/symbol"
+            order_response = requests.post(
+                order_url, 
+                json=order_payload, 
+                headers={"Content-Type": "application/json"},
+                timeout=30
+            )
             
-            # Extract order ID if available
-            order_id = None
-            if isinstance(response, list) and len(response) > 0:
-                order_data = response[0]
-                order_id = order_data.get('order_id') or order_data.get('orderId')
-                execution_details["order_id"] = order_id
-            
-            # Create detailed success message
-            price_info = f" @ ~${execution_details['market_price']:.2f}" if execution_details['market_price'] else ""
-            cost_info = f" (~${execution_details['estimated_cost']:.2f})" if execution_details['estimated_cost'] else ""
-            
-            success_msg = f"✅ **{symbol}**: {quantity} shares{price_info}{cost_info}"
-            if order_id:
-                success_msg += f" | Order ID: {order_id}"
-            
-            execution_details["status"] = "success"
-            execution_details["message"] = success_msg
-            
-            logger.info(f"Order placed successfully: {order_tag}")
-            
-            return True, success_msg, order_tag, execution_details
-            
-        except SymbolResolutionError as e:
-            error_msg = f"❌ **{symbol}**: Symbol resolution failed - {str(e)}"
-            execution_details["status"] = "failed"
-            execution_details["error"] = str(e)
-            execution_details["message"] = error_msg
-            logger.error(error_msg)
-            return False, error_msg, None, execution_details
+            if order_response.status_code == 200:
+                response_data = order_response.json()
+                execution_details["api_response"] = response_data
+                
+                # Extract order ID from API response
+                order_id = None
+                if response_data.get("status") == "success":
+                    # Try to extract order ID from the response data
+                    order_data = response_data.get("data", {})
+                    if isinstance(order_data, list) and len(order_data) > 0:
+                        order_id = order_data[0].get('order_id') or order_data[0].get('orderId')
+                    elif isinstance(order_data, dict):
+                        order_id = order_data.get('order_id') or order_data.get('orderId')
+                    
+                    # If not found in data, try the message
+                    if not order_id and "order_id" in str(response_data):
+                        import re
+                        order_id_match = re.search(r'order_id[\'"]?\s*:\s*[\'"]?(\w+)', str(response_data))
+                        if order_id_match:
+                            order_id = order_id_match.group(1)
+                    
+                    execution_details["order_id"] = order_id
+                    
+                    # Create detailed success message for cash quantity order
+                    price_info = f" @ ~${execution_details['market_price']:.2f}" if execution_details['market_price'] else ""
+                    shares_info = f" (~{execution_details['estimated_shares']:.6f} shares)" if execution_details.get('estimated_shares') else ""
+                    
+                    success_msg = f"✅ **{symbol}**: ${amount_usd}{price_info}{shares_info}"
+                    if order_id:
+                        success_msg += f" | Order ID: {order_id}"
+                    
+                    execution_details["status"] = "success"
+                    execution_details["message"] = success_msg
+                    
+                    logger.info(f"Order placed successfully via API: {order_tag}")
+                    
+                    return True, success_msg, order_id or order_tag, execution_details
+                else:
+                    # API returned success status but with error status in data
+                    error_msg = response_data.get("message", "Unknown API error")
+                    raise Exception(f"API error: {error_msg}")
+            else:
+                # HTTP error from API
+                try:
+                    error_data = order_response.json()
+                    error_msg = error_data.get("message", f"HTTP {order_response.status_code}")
+                except:
+                    error_msg = f"HTTP {order_response.status_code}: {order_response.text}"
+                raise Exception(f"API request failed: {error_msg}")
             
         except Exception as e:
             error_msg = f"❌ **{symbol}**: Order failed - {str(e)}"

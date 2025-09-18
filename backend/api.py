@@ -325,24 +325,37 @@ def place_order_by_symbol():
 
     data = request.json
 
-    # Validate required fields
-    required_fields = ["symbol", "side", "quantity", "order_type"]
-    missing_fields = [field for field in required_fields if field not in data]
-    if missing_fields:
+    # Validate required fields - support both quantity and cash_qty
+    symbol = data.get("symbol", "").upper()
+    side = data.get("side", "").upper()
+    order_type = data.get("order_type", "").upper()
+    quantity = data.get("quantity", 0)
+    cash_qty = data.get("cash_qty", 0)
+    
+    # Check basic required fields
+    if not symbol or not side or not order_type:
         return (
-            jsonify(
-                {
-                    "status": "error",
-                    "message": f"Missing required fields: {', '.join(missing_fields)}",
-                }
-            ),
+            jsonify({
+                "status": "error",
+                "message": "Missing required fields: symbol, side, order_type"
+            }),
             400,
         )
-
-    symbol = data["symbol"].upper()
-    side = data["side"].upper()
-    quantity = int(data["quantity"])
-    order_type = data["order_type"].upper()
+    
+    # Check that either quantity OR cash_qty is provided
+    if not quantity and not cash_qty:
+        return (
+            jsonify({
+                "status": "error",
+                "message": "Either 'quantity' (shares) or 'cash_qty' (dollar amount) must be provided"
+            }),
+            400,
+        )
+    
+    # If both are provided, prefer cash_qty and warn
+    if quantity and cash_qty:
+        logger.warning(f"Both quantity ({quantity}) and cash_qty ({cash_qty}) provided. Using cash_qty for dollar-based investment.")
+        quantity = 0  # Set to 0 when using cash_qty
 
     # Validate values
     if side not in ["BUY", "SELL"]:
@@ -372,36 +385,61 @@ def place_order_by_symbol():
         # Create order request
         order_tag = f'auto-{symbol}-{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
 
-        order_request = make_order_request(
-            conid=int(conid),
-            side=side,
-            quantity=quantity,
-            order_type=order_type,
-            price=(
-                round(float(data["limit_price"]), 2)
-                if order_type == "LMT" and "limit_price" in data
-                else None
-            ),
-            acct_id=client.account_id,
-            coid=order_tag,
-            tif=data.get("tif", "DAY"),
-        )
+        # Build order request with cash_qty support
+        order_params = {
+            "conid": int(conid),
+            "side": side,
+            "order_type": order_type,
+            "acct_id": client.account_id,
+            "coid": order_tag,
+            "tif": data.get("tif", "DAY"),
+        }
+        
+        # Use cash_qty for dollar-based orders, quantity for share-based orders
+        if cash_qty:
+            order_params["quantity"] = 1  # Set to 1 when using cash_qty (IBKR will override)
+            order_params["cash_qty"] = float(cash_qty)
+        else:
+            order_params["quantity"] = int(quantity)
+        
+        # Add price for limit orders
+        if order_type == "LMT" and "limit_price" in data:
+            order_params["price"] = round(float(data["limit_price"]), 2)
 
-        # Define standard answers
+        order_request = make_order_request(**order_params)
+
+        # Define standard answers including cash quantity support
         answers = {
             QuestionType.PRICE_PERCENTAGE_CONSTRAINT: True,
             QuestionType.ORDER_VALUE_LIMIT: True,
             QuestionType.STOP_ORDER_RISKS: True,
+            QuestionType.CASH_QUANTITY: True,  # Accept cash quantity details
+            QuestionType.CASH_QUANTITY_ORDER: True,  # Accept cash quantity orders
+            QuestionType.MISSING_MARKET_DATA: True,  # Accept missing market data warning
             "Unforeseen new question": True,
             "Market Order Confirmation": True,
         }
 
         response = client.place_order(order_request, answers).data
 
-        return jsonify(
-            {
+        # Create success message based on order type
+        if cash_qty:
+            message = f"Order placed successfully for ${cash_qty} of {symbol}"
+            result_data = {
                 "status": "success",
-                "message": f"Order placed successfully for {quantity} shares of {symbol}",
+                "message": message,
+                "order_tag": order_tag,
+                "symbol": symbol,
+                "side": side,
+                "cash_qty": cash_qty,
+                "order_type": order_type,
+                "data": response,
+            }
+        else:
+            message = f"Order placed successfully for {quantity} shares of {symbol}"
+            result_data = {
+                "status": "success",
+                "message": message,
                 "order_tag": order_tag,
                 "symbol": symbol,
                 "side": side,
@@ -409,7 +447,8 @@ def place_order_by_symbol():
                 "order_type": order_type,
                 "data": response,
             }
-        )
+
+        return jsonify(result_data)
 
     except SymbolResolutionError as e:
         logger.error(f"Symbol resolution failed for {symbol}: {e}")
@@ -561,14 +600,56 @@ def get_marketdata():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@app.route("/market-data/current-price/<symbol>", methods=["GET"])
+def get_current_price(symbol):
+    """Get current market price for a given symbol."""
+    client = get_ibkr_client()
+    if not client:
+        return (
+            jsonify({"status": "error", "message": "IBKR client not available."}),
+            500,
+        )
+
+    try:
+        # Resolve symbol to contract ID
+        conid = resolve_symbol_to_conid(client, symbol.upper())
+        
+        # Get current price
+        current_price = get_current_price_for_symbol(symbol.upper(), conid)
+        
+        return jsonify({
+            "status": "success",
+            "symbol": symbol.upper(),
+            "conid": conid,
+            "price": current_price,
+            "timestamp": datetime.datetime.now().isoformat()
+        })
+        
+    except SymbolResolutionError as e:
+        return jsonify({
+            "status": "error", 
+            "message": f"Symbol resolution failed: {str(e)}"
+        }), 400
+    except Exception as e:
+        logger.error(f"Current price retrieval failed for {symbol}: {e}")
+        return jsonify({
+            "status": "error", 
+            "message": f"Price retrieval failed: {str(e)}"
+        }), 500
+
+
 # ===================
 # APP INITIALIZATION
 # ===================
 
 if __name__ == "__main__":
     # Run the app (minimal setup for local use)
+    from .config import Config
+    config = Config()
+    settings = config.get_settings()
+    
     app.run(
         debug=False,  # Turn off debug for automation
-        port=int(os.environ.get("PORT", 8080)),
+        port=settings["api_port"],  # No fallback - config.json required
         host="127.0.0.1",  # Only listen on localhost
     )

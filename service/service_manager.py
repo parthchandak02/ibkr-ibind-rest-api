@@ -57,7 +57,10 @@ class ServiceManager:
                 
                 if self.is_running():
                     print(f"✅ Service started successfully (PID: {process.pid})")
-                    print(f"📊 Status API: http://127.0.0.1:8081/service/status")
+                    from backend.config import Config
+                    config = Config()
+                    port = config.get_settings()["service_port"]  # No fallback - config.json required
+                    print(f"📊 Status API: http://127.0.0.1:{port}/service/status")
                     print(f"📋 Logs: {self.logs_dir}/recurring_service.log")
                     return True
                 else:
@@ -133,7 +136,10 @@ class ServiceManager:
             
             # Try to get detailed status from API
             try:
-                response = requests.get("http://127.0.0.1:8081/service/status", timeout=5)
+                from backend.config import Config
+                config = Config()
+                port = config.get_settings()["service_port"]  # No fallback - config.json required
+                response = requests.get(f"http://127.0.0.1:{port}/service/status", timeout=5)
                 if response.status_code == 200:
                     data = response.json()
                     print(f"🏥 Status API: ✅ Healthy")
@@ -181,7 +187,10 @@ class ServiceManager:
     def execute(self):
         """Manually trigger execution."""
         try:
-            response = requests.post("http://127.0.0.1:8081/service/execute", timeout=10)
+            from backend.config import Config
+            config = Config()
+            port = config.get_settings()["service_port"]  # No fallback - config.json required
+            response = requests.post(f"http://127.0.0.1:{port}/service/execute", timeout=10)
             if response.status_code == 200:
                 print("✅ Manual execution triggered successfully")
                 return True

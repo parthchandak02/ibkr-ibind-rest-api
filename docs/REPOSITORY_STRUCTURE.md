@@ -67,9 +67,7 @@ ibind_rest_api/
 │       └── ws_03_market_history.py
 │
 ├── ⚙️ Configuration & Data
-│   ├── config.json               # Trading environment config
-│   ├── api_keys.json            # API credentials (gitignored)
-│   ├── google_sheets_credentials.json  # Google auth (gitignored)
+│   ├── config.json               # Trading environment config (ALL credentials)
 │   ├── live_trading_oauth_files/ # IBKR OAuth tokens (gitignored)
 │   │
 │   └── logs/                     # Application logs

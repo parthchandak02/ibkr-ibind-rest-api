@@ -4,18 +4,20 @@ import subprocess
 import argparse
 import time
 import requests
+import sys
+import os
 
-API_BASE_URL = "http://localhost:8080"
+# Add backend to path for config access
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from backend.config import Config
+
+# Get API URL from config
+config = Config()
+API_BASE_URL = config.get_api_base_url()
 
 def get_api_key():
-    """Reads the first API key from the config file."""
-    try:
-        with open('../api_keys.json', 'r') as f:
-            data = json.load(f)
-            return next(iter(data))
-    except (FileNotFoundError, StopIteration, json.JSONDecodeError) as e:
-        print(f"❌ Error loading API key: {e}. Cannot execute trades.")
-        return None
+    """API key no longer needed for local automation setup."""
+    return None  # No authentication required for local API
 
 def fetch_portfolio_data():
     """Fetches the latest portfolio data from the API."""
@@ -86,9 +88,7 @@ def execute_rebalance(dry_run=True, target_tickers=None):
     print("📊 Planning Trades (Sell 25%, Limit Order)")
     print("================================================================================")
 
-    api_key = get_api_key()
-    if not api_key:
-        return
+    # No API key authentication needed for local automation
 
     for ticker in target_tickers:
         if ticker in all_positions_dict:
