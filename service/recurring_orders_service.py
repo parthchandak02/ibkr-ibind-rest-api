@@ -189,7 +189,11 @@ class RecurringOrdersService:
         
         self.flask_thread = Thread(target=run_flask, daemon=True)
         self.flask_thread.start()
-        logger.info(f"📊 Status API started on http://127.0.0.1:{port}")
+        # Get port for logging
+        from backend.config import Config
+        config = Config()  
+        service_port = config.get_settings()["service_port"]
+        logger.info(f"📊 Status API started on http://127.0.0.1:{service_port}")
     
     def execute_daily_check(self, manual=False):
         """Execute the daily recurring orders check."""

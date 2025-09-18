@@ -80,7 +80,7 @@
   "settings": {
     "trading_environment": "live_trading",
     "api_port": 8082,
-    "service_port": 8081,
+    "service_port": 8083,
     "log_level": "INFO"
   },
   "scheduling": {
