@@ -142,7 +142,7 @@ def cancel_order(order_id: str) -> bool:
     try:
         response = requests.delete(
             f"{API_URL}/order/{order_id}",
-            headers={"X-API-Key": API_KEY},
+            # No headers needed for local automation
             timeout=10
         )
         response.raise_for_status()

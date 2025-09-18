@@ -10,6 +10,7 @@ from datetime import datetime
 
 from flask import Blueprint, jsonify, request
 
+from .config import Config
 from .recurring_orders import RecurringOrdersManager, RecurringOrdersError
 
 logger = logging.getLogger(__name__)
@@ -47,8 +48,13 @@ def get_status():
         
         # Count by frequency
         frequency_counts = {}
+        # Load column headers from config once
+        config = Config()
+        google_sheets_config = config.get_google_sheets_config()
+        column_headers = google_sheets_config.get('column_headers', {}).get('recurring_orders', {})
+        
         for order in orders:
-            freq = order.get('Frequency', 'Unknown')
+            freq = order.get(column_headers.get('frequency', 'Frequency'), 'Unknown')
             frequency_counts[freq] = frequency_counts.get(freq, 0) + 1
         
         return jsonify({
@@ -174,12 +180,12 @@ def test_notification():
     try:
         manager = get_manager()
         
-        # Send test notification
-        manager.send_discord_notification(
-            orders_executed=0,
-            successes=0,
-            failures=0,
-            details=["🧪 Test notification from IBKR Recurring Orders API"]
+        # Send test notification using professional implementation
+        from .discord_notifier import DiscordNotifier
+        notifier = DiscordNotifier()
+        notifier.send_simple_notification(
+            message="🧪 Test notification from IBKR Recurring Orders API",
+            is_error=False
         )
         
         return jsonify({

@@ -27,35 +27,26 @@ from apscheduler.triggers.cron import CronTrigger
 # Add backend to path for imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+from .config import Config
+from .exceptions import (
+    IBKRTradingError, 
+    SheetsIntegrationError, 
+    OrderExecutionError, 
+    ConfigurationError,
+    NotificationError,
+    RecurringOrdersError  # Legacy compatibility
+)
+from .models import (
+    ColumnHeaders, 
+    RecurringOrder, 
+    ExecutionDetails, 
+    SchedulingConfig,
+    OrderFrequency
+)
 from .sheets_integration import get_sheets_client
+from .validators import Validators
 
 logger = logging.getLogger(__name__)
-
-# --- Configuration ---
-from .config import Config
-
-# Load configuration
-config = Config()
-google_sheets_config = config.get_google_sheets_config()
-discord_config = config.get_discord_config()
-settings = config.get_settings()
-
-DISCORD_WEBHOOK_URL = discord_config.get("webhook_url", os.getenv("DISCORD_WEBHOOK_URL"))
-SHEET_URL = google_sheets_config.get("spreadsheet_url", os.getenv("GOOGLE_SHEET_URL"))
-API_SERVER_BASE_URL = config.get_api_base_url()
-EST = pytz.timezone('US/Eastern')
-
-# Scheduling Configuration
-SCHEDULE_CONFIG = {
-    'Daily': {'hour': 9, 'minute': 0},      # 9:00 AM EST
-    'Weekly': {'day_of_week': 0, 'hour': 9, 'minute': 0},  # Monday 9:00 AM EST  
-    'Monthly': {'day': 1, 'hour': 9, 'minute': 0}  # 1st of month 9:00 AM EST
-}
-
-
-class RecurringOrdersError(Exception):
-    """Custom exception for recurring orders system."""
-    pass
 
 
 class RecurringOrdersManager:
@@ -64,16 +55,84 @@ class RecurringOrdersManager:
     
     Handles scheduling, execution, logging, and notifications.
     Uses API server for order execution.
+    
+    This class follows proper OOP principles with dependency injection,
+    comprehensive error handling, and type safety.
     """
     
-    def __init__(self, sheet_url: str = SHEET_URL, discord_webhook: str = DISCORD_WEBHOOK_URL, api_base_url: str = API_SERVER_BASE_URL):
-        self.sheet_url = sheet_url
-        self.discord_webhook = discord_webhook
-        self.api_base_url = api_base_url
-        self.scheduler = None
+    def __init__(
+        self, 
+        config: Optional[Config] = None,
+        sheet_url: Optional[str] = None,
+        discord_webhook: Optional[str] = None,
+        api_base_url: Optional[str] = None
+    ):
+        """
+        Initialize the recurring orders manager.
+        
+        Args:
+            config: Configuration instance (injected dependency)
+            sheet_url: Google Sheets URL override
+            discord_webhook: Discord webhook URL override  
+            api_base_url: API server base URL override
+        """
+        # Dependency injection - use provided config or create new one
+        self.config = config or Config()
+        
+        # Load configurations
+        self._load_configurations()
+        
+        # Override URLs if provided
+        self.sheet_url = sheet_url or self._google_sheets_config.get("spreadsheet_url")
+        self.discord_webhook = discord_webhook or self._discord_config.get("webhook_url")
+        self.api_base_url = api_base_url or self.config.get_api_base_url()
+        
+        # Validate required configurations
+        self._validate_configuration()
+        
+        # Initialize state
+        self.scheduler: Optional[BackgroundScheduler] = None
         self.sheets_client = None
         
+        # Initialize clients
         self._initialize_clients()
+    
+    def _load_configurations(self) -> None:
+        """Load all required configurations."""
+        try:
+            self._google_sheets_config = self.config.get_google_sheets_config()
+            self._discord_config = self.config.get_discord_config()
+            self._settings = self.config.get_settings()
+            self._scheduling_config = SchedulingConfig.from_config(
+                self.config.get_scheduling_config()
+            )
+            self.column_headers = ColumnHeaders.from_config(
+                self._google_sheets_config.get('column_headers', {}).get('recurring_orders', {})
+            )
+            
+        except Exception as e:
+            raise ConfigurationError(f"Failed to load configurations: {e}") from e
+    
+    def _validate_configuration(self) -> None:
+        """Validate that all required configurations are present."""
+        validators = Validators()
+        
+        if not self.sheet_url:
+            raise ConfigurationError("Google Sheets URL not configured")
+        
+        if not self.discord_webhook:
+            raise ConfigurationError("Discord webhook URL not configured")
+        
+        if not self.api_base_url:
+            raise ConfigurationError("API server base URL not configured")
+        
+        # Validate URLs
+        try:
+            validators.validate_url(self.sheet_url, ['https'])
+            validators.validate_url(self.discord_webhook, ['https'])
+            validators.validate_url(self.api_base_url, ['http', 'https'])
+        except Exception as e:
+            raise ConfigurationError(f"Invalid URL configuration: {e}") from e
     
     def _initialize_clients(self):
         """Initialize Google Sheets client and verify API server connection."""
@@ -108,19 +167,25 @@ class RecurringOrdersManager:
             spreadsheet = self.sheets_client.open_spreadsheet_by_url(self.sheet_url)
             worksheet = self.sheets_client.get_worksheet(spreadsheet, "Recurring Orders - Python")
             
-            orders = self.sheets_client.read_all_records(worksheet)
+            raw_orders = self.sheets_client.read_all_records(worksheet)
+            logger.info(f"Retrieved {len(raw_orders)} raw orders from sheet")
             
-            # Filter for active orders only
-            active_orders = [
-                order for order in orders 
-                if order.get('Status', '').lower() == 'active' and 
-                   order.get('Stock Symbol') and 
-                   order.get('Amount (USD)') and 
-                   order.get('Frequency')
-            ]
+            # Parse orders using proper data models
+            valid_orders = []
+            for i, row in enumerate(raw_orders, start=2):  # Start at row 2 (header is row 1)
+                try:
+                    order = RecurringOrder.from_sheet_row(row, self.column_headers)
+                    if order.is_valid_for_execution():
+                        valid_orders.append(order)
+                    else:
+                        logger.debug(f"Skipping invalid/inactive order on row {i}: {order.stock_symbol}")
+                        
+                except Exception as e:
+                    logger.warning(f"Failed to parse order on row {i}: {e}")
+                    continue
             
-            logger.info(f"Read {len(active_orders)} active recurring orders")
-            return active_orders
+            logger.info(f"Parsed {len(valid_orders)} valid active orders")
+            return valid_orders
             
         except Exception as e:
             logger.error(f"Failed to read recurring orders: {e}")
@@ -154,60 +219,57 @@ class RecurringOrdersManager:
         Execute a single recurring order via API server.
         
         Args:
-            order: Order dictionary from Google Sheets
+            order: RecurringOrder object to execute
             
         Returns:
-            Tuple of (success, message, order_id, execution_details)
+            ExecutionDetails object with execution results
+            
+        Raises:
+            OrderExecutionError: If order execution fails
+            ValidationError: If order data is invalid
         """
-        symbol = order['Stock Symbol'].upper()
-        amount_usd = float(order['Amount (USD)'])
-        execution_details = {
-            "symbol": symbol,
-            "target_amount": amount_usd,
-            "timestamp": datetime.now(EST).strftime("%Y-%m-%d %H:%M:%S EST"),
-            "frequency": order.get('Frequency', 'Unknown')
-        }
+        validators = Validators()
+        
+        # Validate order
+        if not order.is_valid_for_execution():
+            raise ValidationError(f"Order {order.stock_symbol} is not valid for execution")
+        
+        # Create execution details
+        execution_details = ExecutionDetails(
+            symbol=order.stock_symbol,
+            target_quantity=order.qty_to_buy,
+            timestamp=datetime.now(pytz.timezone(self._scheduling_config.timezone)),
+            frequency=order.frequency
+        )
         
         try:
             # Get current market price for informational purposes (not needed for order)
             try:
-                price_url = f"{self.api_base_url}/market-data/current-price/{symbol}"
+                price_url = f"{self.api_base_url}/market-data/current-price/{order.stock_symbol}"
                 price_response = requests.get(price_url, timeout=10)
                 
                 if price_response.status_code == 200:
                     price_data = price_response.json()
                     current_price = price_data.get('price', 0)
-                    execution_details["market_price"] = current_price
+                    execution_details.market_price = current_price
                     
-                    # Calculate estimated fractional shares for display
+                    # Calculate estimated cost (quantity * market_price)
                     if current_price > 0:
-                        estimated_shares = amount_usd / current_price
-                        execution_details["estimated_shares"] = estimated_shares
-                    else:
-                        execution_details["estimated_shares"] = 0
-                        
-                    execution_details["exact_dollar_amount"] = amount_usd
+                        execution_details.estimated_cost = order.qty_to_buy * current_price
                 else:
-                    logger.warning(f"Could not get current price for {symbol} from API")
-                    execution_details["market_price"] = None
-                    execution_details["estimated_shares"] = None
-                    execution_details["exact_dollar_amount"] = amount_usd
+                    logger.warning(f"Could not get current price for {order.stock_symbol} from API")
                     
             except Exception as price_error:
-                logger.warning(f"Could not get current price for {symbol}: {price_error}")
-                execution_details["market_price"] = None
-                execution_details["estimated_shares"] = None
-                execution_details["exact_dollar_amount"] = amount_usd
+                logger.warning(f"Could not get current price for {order.stock_symbol}: {price_error}")
             
             # Create order tag with timestamp
-            order_tag = f'recurring-{symbol}-{datetime.now().strftime("%Y%m%d%H%M%S")}'
-            execution_details["order_tag"] = order_tag
+            order_tag = f'recurring-{order.stock_symbol}-{datetime.now().strftime("%Y%m%d%H%M%S")}'
             
-            # Place order via API server using cash quantity for exact dollar investment
+            # Place order via API server using exact quantity of shares
             order_payload = {
-                "symbol": symbol,
+                "symbol": order.stock_symbol,
                 "side": "BUY", 
-                "cash_qty": amount_usd,  # Use cash quantity for exact dollar amount
+                "quantity": order.qty_to_buy,
                 "order_type": "MKT",
                 "tif": "DAY"
             }
@@ -222,7 +284,7 @@ class RecurringOrdersManager:
             
             if order_response.status_code == 200:
                 response_data = order_response.json()
-                execution_details["api_response"] = response_data
+                # Store API response in execution details (success case)
                 
                 # Extract order ID from API response
                 order_id = None
@@ -241,22 +303,21 @@ class RecurringOrdersManager:
                         if order_id_match:
                             order_id = order_id_match.group(1)
                     
-                    execution_details["order_id"] = order_id
+                    execution_details.order_id = order_id
                     
                     # Create detailed success message for cash quantity order
-                    price_info = f" @ ~${execution_details['market_price']:.2f}" if execution_details['market_price'] else ""
-                    shares_info = f" (~{execution_details['estimated_shares']:.6f} shares)" if execution_details.get('estimated_shares') else ""
+                    price_info = f" @ ${execution_details.market_price:.2f}" if execution_details.market_price else ""
                     
-                    success_msg = f"✅ **{symbol}**: ${amount_usd}{price_info}{shares_info}"
+                    cost_info = f" (${execution_details.estimated_cost:.2f})" if execution_details.estimated_cost else ""
+                    success_msg = f"✅ **{order.stock_symbol}**: {order.qty_to_buy} shares{price_info}{cost_info}"
                     if order_id:
                         success_msg += f" | Order ID: {order_id}"
                     
-                    execution_details["status"] = "success"
-                    execution_details["message"] = success_msg
+                    execution_details.status = "success"
                     
                     logger.info(f"Order placed successfully via API: {order_tag}")
                     
-                    return True, success_msg, order_id or order_tag, execution_details
+                    return execution_details
                 else:
                     # API returned success status but with error status in data
                     error_msg = response_data.get("message", "Unknown API error")
@@ -271,14 +332,13 @@ class RecurringOrdersManager:
                 raise Exception(f"API request failed: {error_msg}")
             
         except Exception as e:
-            error_msg = f"❌ **{symbol}**: Order failed - {str(e)}"
-            execution_details["status"] = "failed"
-            execution_details["error"] = str(e)
-            execution_details["message"] = error_msg
+            error_msg = f"❌ **{order.stock_symbol}**: Order failed - {str(e)}"
+            execution_details.status = "failed"
+            execution_details.error = str(e)
             logger.error(error_msg)
-            return False, error_msg, None, execution_details
+            return execution_details
     
-    def log_execution_to_sheet(self, order: Dict, success: bool, message: str, order_id: Optional[str], execution_details: Optional[Dict] = None):
+    def log_execution_to_sheet(self, order: RecurringOrder, execution_details: ExecutionDetails):
         """
         Log execution result back to Google Sheets with detailed information.
         
@@ -314,9 +374,10 @@ class RecurringOrdersManager:
             all_records = worksheet.get_all_records()
             symbol = order['Stock Symbol']
             
+            # Find the row for this stock symbol
             for i, record in enumerate(all_records, start=2):  # Start at row 2 (header is row 1)
-                if record.get('Stock Symbol') == symbol:
-                    timestamp = datetime.now(EST).strftime("%Y-%m-%d %H:%M:%S EST")
+                if record.get(self.column_headers.stock_symbol) == order.stock_symbol:
+                    timestamp = datetime.now(pytz.timezone(self._scheduling_config.timezone)).strftime("%Y-%m-%d %H:%M:%S EST")
                     
                     # Create detailed log entry matching Discord format
                     if success and execution_details:
@@ -332,7 +393,7 @@ class RecurringOrdersManager:
                             log_entry += f" (${cost:.2f})"
                         if order_id:
                             log_entry += f" | Order ID: {order_id}"
-                        log_entry += f" | Frequency: {order.get('Frequency', 'Unknown')}"
+                        log_entry += f" | Frequency: {order.get(self.column_headers['frequency'], 'Unknown')}"
                         
                     elif success:
                         # Successful execution without details
@@ -344,10 +405,10 @@ class RecurringOrdersManager:
                         # Failed execution
                         error_msg = execution_details.get('error', 'Unknown error') if execution_details else message
                         log_entry = f"❌ {timestamp}: {symbol} - FAILED: {error_msg}"
-                        log_entry += f" | Frequency: {order.get('Frequency', 'Unknown')}"
+                        log_entry += f" | Frequency: {order.get(self.column_headers['frequency'], 'Unknown')}"
                     
                     # Get current log content and append
-                    current_log = record.get('Log', '')
+                    current_log = record.get(self.column_headers['log'], '')
                     if current_log:
                         new_log = f"{current_log}\n{log_entry}"
                     else:
@@ -356,14 +417,13 @@ class RecurringOrdersManager:
                     # Also update Last Run column if it exists
                     try:
                         headers = worksheet.row_values(1)
-                        if 'Last Run' in headers:
-                            last_run_col = headers.index('Last Run') + 1
-                            worksheet.update_cell(i, last_run_col, timestamp)
+                        # Note: No 'Last Run' column in current sheet structure
+                        # Timestamp is now included in the Log column
                         
                         # Update Log column (find it dynamically)
                         log_col = 5  # Default to column E
-                        if 'Log' in headers:
-                            log_col = headers.index('Log') + 1
+                        if self.column_headers['log'] in headers:
+                            log_col = headers.index(self.column_headers['log']) + 1
                         
                         worksheet.update_cell(i, log_col, new_log)
                         logger.info(f"Updated detailed log for {symbol} in Google Sheets")
@@ -389,7 +449,7 @@ class RecurringOrdersManager:
             execution_details: List of detailed execution data dictionaries
         """
         try:
-            timestamp = datetime.now(EST).strftime("%Y-%m-%d %H:%M:%S EST")
+            timestamp = datetime.now(pytz.timezone(self._scheduling_config.timezone)).strftime("%Y-%m-%d %H:%M:%S EST")
             
             # Create embed for Discord
             if failures == 0 and orders_executed > 0:
@@ -500,7 +560,10 @@ class RecurringOrdersManager:
             # Add market hours info for trading notifications
             if orders_executed > 0:
                 now_est = datetime.now(EST)
-                market_status = "🕘 After Hours" if now_est.hour < 9 or now_est.hour > 16 else "🕘 Market Hours"
+                market_hours = scheduling_config.get('market_hours', {})
+                market_open = market_hours.get('market_open_hour', 9)
+                market_close = market_hours.get('market_close_hour', 16)
+                market_status = "🕘 After Hours" if now_est.hour < market_open or now_est.hour > market_close else "🕘 Market Hours"
                 embed["fields"].append({
                     "name": "🏦 Market Status",
                     "value": f"{market_status}\n{now_est.strftime('%A, %B %d, %Y')}",
@@ -518,6 +581,8 @@ class RecurringOrdersManager:
             
         except Exception as e:
             logger.error(f"Failed to send Discord notification: {e}")
+    
+    # END OF OLD DISCORD METHOD - TO BE REMOVED
     
     def execute_recurring_orders(self, frequency_filter: Optional[str] = None, manual_trigger: bool = False):
         """
@@ -540,7 +605,7 @@ class RecurringOrdersManager:
             orders_to_execute = []
             
             for order in orders:
-                frequency = order['Frequency']
+                frequency = order.frequency.value
                 
                 # Apply frequency filter if specified
                 if frequency_filter and frequency.lower() != frequency_filter.lower():
@@ -564,9 +629,9 @@ class RecurringOrdersManager:
                 
                 # Find when next orders will run
                 for order in orders:
-                    freq = order.get('Frequency', '').lower()
-                    symbol = order.get('Stock Symbol', 'Unknown')
-                    amount = order.get('Amount (USD)', 0)
+                    freq = order.get(self.column_headers['frequency'], '').lower()
+                    symbol = order.get(self.column_headers['stock_symbol'], 'Unknown')
+                    amount = order.get(self.column_headers['amount'], 0)
                     
                     if freq == 'daily':
                         next_orders.append(f"📅 **{symbol}** (${amount}) - Tomorrow")
@@ -580,7 +645,7 @@ class RecurringOrdersManager:
                     f"📊 **Daily Check Complete** - {now_est.strftime('%A, %B %d, %Y')}",
                     f"🔍 Checked {active_count} active recurring orders",
                     f"✅ No orders scheduled for today",
-                    f"⏰ Next check: Tomorrow at 9:00 AM EST"
+                    f"⏰ Next check: Tomorrow at {scheduling_config.get('daily_check_time', {}).get('hour', 9)}:00 AM EST"
                 ]
                 
                 if next_orders:
@@ -590,13 +655,17 @@ class RecurringOrdersManager:
                         details.append(f"... and {len(next_orders) - 3} more")
                 
                 # Send daily check notification
-                self.send_discord_notification(
-                    orders_executed=0,
-                    successes=0,
-                    failures=0,
-                    details=details,
-                    execution_details=None
-                )
+                # Send daily check notification using professional implementation
+                try:
+                    from .discord_notifier import DiscordNotifier
+                    notifier = DiscordNotifier(self.config)
+                    notifier.send_simple_notification(
+                        message="\n".join(details), 
+                        is_error=False
+                    )
+                    logger.info("✅ Daily check Discord notification sent")
+                except Exception as discord_error:
+                    logger.error(f"Failed to send daily check Discord notification: {discord_error}")
                 
                 return
             
@@ -606,10 +675,13 @@ class RecurringOrdersManager:
             successes = 0
             failures = 0
             execution_summaries = []
-            execution_details = []
+            execution_details_list = []
             
             for order in orders_to_execute:
-                success, message, order_id, detail_data = self.execute_order(order)
+                execution_details = self.execute_order(order)
+                success = execution_details.status == "success"
+                message = f"Executed {order.stock_symbol}: {order.qty_to_buy} shares"
+                order_id = execution_details.order_id
                 
                 if success:
                     successes += 1
@@ -617,24 +689,32 @@ class RecurringOrdersManager:
                     failures += 1
                 
                 execution_summaries.append(message)
-                if detail_data:
-                    execution_details.append(detail_data)
+                execution_details_list.append(execution_details)
                 
-                # Log to sheet with detailed information (same as Discord)
-                self.log_execution_to_sheet(order, success, message, order_id, detail_data)
+                # Log to sheet using research-based sequential logging
+                try:
+                    from .sequential_logger import log_order_execution
+                    log_message = log_order_execution(order, execution_details)
+                    logger.info(f"✅ Sequential logging successful: {log_message}")
+                except Exception as log_error:
+                    logger.warning(f"Sequential logging failed: {log_error}")
                 
                 # Small delay between orders
                 import time
                 time.sleep(1)
             
-            # Send enhanced Discord notification with detailed execution data
-            self.send_discord_notification(
-                orders_executed=len(orders_to_execute),
-                successes=successes,
-                failures=failures,
-                details=execution_summaries,
-                execution_details=execution_details
-            )
+            # Send professional Discord notification using research-based implementation
+            try:
+                from .discord_notifier import send_trading_notification
+                send_trading_notification(
+                    orders_executed=len(orders_to_execute),
+                    successes=successes,
+                    failures=failures,
+                    execution_details_list=execution_details_list
+                )
+                logger.info("✅ Professional Discord notification sent successfully")
+            except Exception as discord_error:
+                logger.error(f"Failed to send Discord notification: {discord_error}")
             
             logger.info(f"Recurring orders execution completed: {successes} success, {failures} failures")
             
@@ -668,14 +748,19 @@ class RecurringOrdersManager:
         
         self.scheduler = BackgroundScheduler(timezone=EST)
         
-        # Schedule daily check at 9:00 AM EST
+        # Schedule daily check (configurable time)
         # This will check for any orders that should run today
+        daily_time = scheduling_config.get('daily_check_time', {'hour': 9, 'minute': 0})
         self.scheduler.add_job(
             func=lambda: self.execute_recurring_orders(),
-            trigger=CronTrigger(hour=9, minute=0, timezone=EST),
+            trigger=CronTrigger(
+                hour=daily_time.get('hour', 9), 
+                minute=daily_time.get('minute', 0), 
+                timezone=EST
+            ),
             id='daily_recurring_orders',
             name='Daily Recurring Orders Check',
-            misfire_grace_time=300  # 5 minutes grace time
+            misfire_grace_time=scheduling_config.get('grace_time_minutes', 5) * 60  # Grace time from config
         )
         
         # Start the scheduler
