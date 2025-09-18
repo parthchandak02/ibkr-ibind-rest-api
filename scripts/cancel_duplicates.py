@@ -28,7 +28,6 @@ from backend.config import Config
 # Get API URL from config
 config = Config()
 API_URL = config.get_api_base_url()
-API_KEY = None  # No API key needed for local automation
 
 console = Console()
 
