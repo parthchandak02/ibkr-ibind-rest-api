@@ -110,7 +110,7 @@ def execute_rebalance(dry_run=True, target_tickers=None):
                 trade_qty = math.floor(current_position * 0.25)
                 
                 if trade_qty > 0:
-                    price = get_market_price(conid, api_key)
+                    price = get_market_price(conid, None)
                     if price:
                         trade = {
                             "ticker": ticker,
