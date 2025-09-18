@@ -15,9 +15,6 @@ from backend.config import Config
 config = Config()
 API_BASE_URL = config.get_api_base_url()
 
-def get_api_key():
-    """API key no longer needed for local automation setup."""
-    return None  # No authentication required for local API
 
 def fetch_portfolio_data():
     """Fetches the latest portfolio data from the API."""
@@ -88,7 +85,6 @@ def execute_rebalance(dry_run=True, target_tickers=None):
     print("📊 Planning Trades (Sell 25%, Limit Order)")
     print("================================================================================")
 
-    # No API key authentication needed for local automation
 
     for ticker in target_tickers:
         if ticker in all_positions_dict:
@@ -110,7 +106,7 @@ def execute_rebalance(dry_run=True, target_tickers=None):
                 trade_qty = math.floor(current_position * 0.25)
                 
                 if trade_qty > 0:
-                    price = get_market_price(conid, None)
+                    price = get_market_price(conid)
                     if price:
                         trade = {
                             "ticker": ticker,
