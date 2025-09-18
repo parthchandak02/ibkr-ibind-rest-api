@@ -8,8 +8,8 @@
 
 ```bash
 # 1. Clone and install
-git clone <your-repo>
-cd ibind_rest_api
+git clone https://github.com/parthchandak02/ibkr-ibind-rest-api.git
+cd ibkr-ibind-rest-api
 uv sync
 
 # 2. Configure credentials (see setup below)
@@ -58,20 +58,17 @@ uv run python service.py start
    print(re.sub(r"[\s:]", "", match.group(1)) if match else "No prime found.")
    ```
 
-4. **Environment Variables:**
+4. **OAuth Files Placement:**
    ```bash
-   export IBIND_USE_OAUTH=True
-   export IBIND_OAUTH1A_CONSUMER_KEY="YOUR_9_CHAR_KEY"
-   export IBIND_OAUTH1A_ACCESS_TOKEN="YOUR_ACCESS_TOKEN"
-   export IBIND_OAUTH1A_ACCESS_TOKEN_SECRET="YOUR_ACCESS_TOKEN_SECRET"
-   export IBIND_OAUTH1A_DH_PRIME="YOUR_DH_PRIME_HEX_STRING"
-   export IBIND_OAUTH1A_ENCRYPTION_KEY_FP="./private_encryption.pem"
-   export IBIND_OAUTH1A_SIGNATURE_KEY_FP="./private_signature.pem"
+   # Place private keys in project root
+   ls -la private_*.pem
+   # Should show: private_encryption.pem, private_signature.pem
    ```
 
-5. **Install OAuth Dependencies:**
+5. **Dependencies Already Included:**
    ```bash
-   uv add ibind[oauth]
+   # OAuth dependencies are already in pyproject.toml
+   # No additional installation needed after 'uv sync'
    ```
 
 **📚 Official Guide:**
@@ -119,27 +116,58 @@ uv run python service.py start
 **📚 Resources:**
 - [Discord Webhook Setup Guide](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks)
 
-### **Step 4: Environment Variables**
+### **Step 4: Configure All Environment Variables**
+
+Create a `.env` file or export these variables:
 
 ```bash
+# IBKR OAuth 1.0a Settings
+export IBIND_USE_OAUTH=True
+export IBIND_OAUTH1A_CONSUMER_KEY="YOUR_9_CHAR_KEY"
+export IBIND_OAUTH1A_ACCESS_TOKEN="YOUR_ACCESS_TOKEN"
+export IBIND_OAUTH1A_ACCESS_TOKEN_SECRET="YOUR_ACCESS_TOKEN_SECRET"
+export IBIND_OAUTH1A_DH_PRIME="YOUR_DH_PRIME_HEX_STRING"
+export IBIND_OAUTH1A_ENCRYPTION_KEY_FP="./private_encryption.pem"
+export IBIND_OAUTH1A_SIGNATURE_KEY_FP="./private_signature.pem"
+
+# Google Sheets & Discord Integration
 export GOOGLE_SHEET_URL="https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit"
 export DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/YOUR_WEBHOOK"
 export GOOGLE_SHEETS_CREDENTIALS_PATH="./google_sheets_credentials.json"
+
+# Trading Environment
 export IBIND_TRADING_ENV="live_trading"  # or "paper_trading"
 ```
 
-### **Step 5: Test & Run**
+### **Step 5: Verification & Launch**
 
 ```bash
-# Test API server
-uv run python run_server.py
-curl http://127.0.0.1:8080/health
+# 1. Verify environment setup
+uv run python -c "import os; print('✅ OAuth vars set' if os.getenv('IBIND_USE_OAUTH') else '❌ OAuth vars missing')"
 
-# Test recurring orders manually  
+# 2. Test IBKR connection
+uv run python -c "from backend.utils import get_ibkr_client; print('✅ IBKR connected' if get_ibkr_client() else '❌ IBKR failed')"
+
+# 3. Test Google Sheets connection  
+uv run python -c "from backend.sheets_integration import get_sheets_client; print('✅ Sheets connected')"
+
+# 4. Test recurring orders manually (safe test)
 uv run python service.py execute
 
-# Start persistent service
+# 5. Start persistent service
 uv run python service.py start
+
+# 6. Verify service is running
+uv run python service.py status
+```
+
+### **🎯 Final Verification:**
+```bash
+# Check all systems
+curl http://127.0.0.1:8080/health                    # API health
+curl http://127.0.0.1:8081/service/status | head -20 # Service status
+
+# If both return healthy JSON responses, you're ready! 🚀
 ```
 
 **🎯 Service Management:**
@@ -264,14 +292,20 @@ curl -X POST http://127.0.0.1:8080/recurring/execute
 ## 📚 **Project Structure**
 
 ```
-ibind_rest_api/
-├── backend/           # Core trading logic & API
-├── service/           # Background automation daemon  
-├── docs/             # Documentation
-├── examples/         # Usage examples
-├── run_server.py     # API server
-├── service.py        # Service manager
-└── config.json       # IBKR credentials
+ibkr-ibind-rest-api/
+├── backend/                      # Core trading logic & API
+├── service/                      # Background automation daemon  
+├── docs/                        # Documentation
+├── examples/                    # Usage examples
+├── tests/                       # Test suite
+├── logs/                        # Service logs (auto-created)
+├── run_server.py               # API server
+├── service.py                  # Service manager
+├── pyproject.toml             # Dependencies & project config
+├── google_sheets_credentials.json  # Google Sheets service account key
+├── private_encryption.pem      # IBKR OAuth private key
+├── private_signature.pem       # IBKR OAuth private key  
+└── .env                       # Environment variables (you create)
 ```
 
 ---
@@ -293,16 +327,26 @@ uv run python tests/test_recurring_system.py
 ### **Common Issues:**
 
 1. **"IBKR client not available"**
-   - Check `config.json` credentials
-   - Verify OAuth files in `live_trading_oauth_files/`
+   - ✅ Check OAuth environment variables are set
+   - ✅ Verify `private_encryption.pem` and `private_signature.pem` exist in project root
+   - ✅ Confirm OAuth access is enabled in IBKR portal
+   - ✅ Try: `uv run python -c "import os; print([k for k in os.environ if 'IBIND' in k])"`
 
 2. **"Google Sheets authentication failed"**
-   - Check `google_sheets_credentials.json` exists
-   - Verify service account has sheet access
+   - ✅ Check `google_sheets_credentials.json` exists in project root
+   - ✅ Verify service account email has editor access to your sheet
+   - ✅ Confirm `GOOGLE_SHEETS_CREDENTIALS_PATH` environment variable is set
+   - ✅ Test: `ls -la google_sheets_credentials.json`
 
 3. **"Service not running"**
-   - Check: `uv run python service.py status`
-   - View logs: `uv run python service.py logs`
+   - ✅ Check: `uv run python service.py status`
+   - ✅ View logs: `uv run python service.py logs`
+   - ✅ Restart: `uv run python service.py restart`
+
+4. **"Environment variables not found"**
+   - ✅ Source your `.env` file: `source .env`
+   - ✅ Or export variables in current shell session
+   - ✅ Check: `echo $IBIND_USE_OAUTH` (should show "True")
 
 ### **Health Checks:**
 ```bash
@@ -312,6 +356,24 @@ curl http://127.0.0.1:8080/health
 # Service status  
 curl http://127.0.0.1:8081/service/status
 ```
+
+---
+
+## 🏁 **You're All Set!**
+
+Once everything is configured:
+
+1. **📊 Your recurring orders execute automatically at 9 AM EST**
+2. **📱 Discord notifications keep you informed of all trades**  
+3. **📋 Google Sheets logs every transaction with details**
+4. **⚙️ Service runs in background reliably**
+5. **🔒 Everything stays local and secure**
+
+### **Next Steps:**
+- Add your stocks to the Google Sheet with desired frequencies (Daily/Weekly/Monthly)
+- Monitor Discord for execution notifications  
+- Use `uv run python service.py status` to check system health
+- Scale your automation as needed
 
 ---
 
