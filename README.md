@@ -142,6 +142,18 @@ uv run python service.py execute
 uv run python service.py start
 ```
 
+**🎯 Service Management:**
+```bash
+# Check if service is running
+uv run python service.py status
+
+# Stop the service
+uv run python service.py stop
+
+# Restart the service  
+uv run python service.py restart
+```
+
 ---
 
 ## 📊 **Usage**
@@ -159,14 +171,23 @@ uv run python service.py start
 
 ### **Service Management:**
 ```bash
-# Check status
+# Start the service (daemon mode)
+uv run python service.py start
+
+# Check service status
 uv run python service.py status
 
-# View logs
+# Stop the service
+uv run python service.py stop
+
+# Restart the service
+uv run python service.py restart
+
+# View live logs
 uv run python service.py logs -f
 
-# Stop/restart
-uv run python service.py stop/restart
+# Manual test execution
+uv run python service.py execute
 ```
 
 ---
