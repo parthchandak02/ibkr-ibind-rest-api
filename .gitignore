@@ -145,7 +145,7 @@ cython_debug/
 # macOS
 .DS_Store
 
-# Project specific
+# Project specific - CRITICAL: Keep credentials secure!
 config.json
 api_keys.json
 google_sheets_credentials.json

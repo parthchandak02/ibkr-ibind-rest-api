@@ -1,6 +1,6 @@
-# 🚀 IBKR Trading API
+# 🚀 IBKR Enterprise Trading System
 
-**Automated recurring orders for Interactive Brokers.** Reads orders from Google Sheets, executes via IBKR API, sends Discord notifications.
+**Professional automated recurring orders for Interactive Brokers.** Enterprise-grade architecture with sequential Google Sheets logging, rich Discord notifications, and quantity-based order execution.
 
 ---
 
@@ -91,7 +91,7 @@ uv run python service.py start
    - **Copy the JSON content** (don't save as separate file)
 
 4. **Create & Share Google Sheet:**
-   - Create sheet with columns: `Status | Stock Symbol | Amount (USD) | Frequency | Log`
+   - Create sheet with columns: `Status | Stock Symbol | Price | Amount | Qty to buy | Frequency | Log`
    - Click **Share** → Add service account email (from JSON)
    - Grant **Editor** permissions
    - Copy sheet URL
@@ -185,10 +185,10 @@ uv run python service.py restart
 ## 📊 **Usage**
 
 ### **Google Sheet Format:**
-| Status | Stock Symbol | Amount (USD) | Frequency | Log |
-|--------|-------------|-------------|-----------|-----|
-| Active | AAPL | 100 | Weekly | *(auto-filled)* |
-| Active | SPY | 50 | Daily | *(auto-filled)* |
+| Status | Stock Symbol | Price | Amount | Qty to buy | Frequency | Log |
+|--------|-------------|-------|--------|-----------|-----------|-----|
+| Active | AAPL | 175.50 | 175.50 | 1 | Weekly | *(auto-filled)* |
+| Active | WDH | 1.90 | 1.90 | 1 | Daily | *(auto-filled)* |
 
 ### **Frequency Rules:**
 - **Daily** → Every day at 9 AM EST
@@ -262,9 +262,11 @@ uv run python service.py execute
    📋 Order ID: REC123456790
 ```
 
-### **Google Sheets Logging:**
+### **Sequential Google Sheets Logging:**
 ```
-✅ 2025-09-17 09:00:15 EST: AAPL - 1 shares @ $175.50 ($175.50) | Order ID: REC123456789 | Frequency: Weekly
+Column G: ✅ 2025-09-18 09:00:15: 1 shares @ $175.50 ($175.50) | ID: REC123456789
+Column H: ✅ 2025-09-19 09:00:15: 1 shares @ $172.30 ($172.30) | ID: REC123456790
+Column I: (Next execution will log here)
 ```
 
 ---
