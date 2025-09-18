@@ -339,7 +339,7 @@ def place_percentage_order(
         QuestionType.ORDER_VALUE_LIMIT: True,
         QuestionType.MISSING_MARKET_DATA: True,
         QuestionType.STOP_ORDER_RISKS: True,
-        "Unforeseen new question": True,
+        "Unforeseen new question": True,  # Used in official Voyz examples
         "<h4>Confirm Mandatory Cap Price</h4>To avoid trading at a price that is not consistent with a fair and orderly market, IB may set a cap (for a buy order) or floor (for a sell order). THIS MAY CAUSE AN ORDER THAT WOULD OTHERWISE BE MARKETABLE NOT TO BE TRADED.": True,
     }
 

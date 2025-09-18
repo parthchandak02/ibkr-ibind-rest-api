@@ -30,7 +30,45 @@
       "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
       "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/your-service-account%40your-project.iam.gserviceaccount.com"
     },
-    "spreadsheet_url": "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit"
+    "spreadsheet_url": "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit",
+    "example_data": {
+      "symbol": "AAPL",
+      "side": "BUY",
+      "quantity": 10,
+      "price": 150.00,
+      "order_type": "LMT"
+    },
+    "column_headers": {
+      "recurring_orders": {
+        "status": "Status",
+        "stock_symbol": "Stock Symbol",
+        "price": "Price",
+        "amount": "Amount",
+        "qty_to_buy": "Qty to buy",
+        "frequency": "Frequency",
+        "log": "Log"
+      },
+      "portfolio": {
+        "symbol": "Symbol",
+        "position": "Position",
+        "market_price": "Market Price",
+        "market_value": "Market Value",
+        "avg_cost": "Avg Cost",
+        "pnl": "P&L",
+        "pnl_percent": "P&L %",
+        "last_updated": "Last Updated"
+      },
+      "trades": {
+        "timestamp": "Timestamp",
+        "symbol": "Symbol",
+        "side": "Side",
+        "quantity": "Quantity",
+        "price": "Price",
+        "total_value": "Total Value",
+        "order_type": "Order Type",
+        "source": "Source"
+      }
+    }
   },
   "discord": {
     "webhook_url": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN"
@@ -44,5 +82,35 @@
     "api_port": 8082,
     "service_port": 8081,
     "log_level": "INFO"
+  },
+  "scheduling": {
+    "timezone": "US/Eastern",
+    "daily_check_time": {
+      "hour": 9,
+      "minute": 0
+    },
+    "schedule_types": {
+      "Daily": {
+        "hour": 9,
+        "minute": 0
+      },
+      "Weekly": {
+        "day_of_week": 0,
+        "hour": 9,
+        "minute": 0
+      },
+      "Monthly": {
+        "day": 1,
+        "hour": 9,
+        "minute": 0
+      }
+    },
+    "market_hours": {
+      "notification_start_hour": 6,
+      "notification_end_hour": 20,
+      "market_open_hour": 9,
+      "market_close_hour": 16
+    },
+    "grace_time_minutes": 5
   }
 }

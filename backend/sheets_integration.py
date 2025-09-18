@@ -13,15 +13,16 @@ from typing import Any, List, Optional
 import gspread
 from google.oauth2.service_account import Credentials
 
+from .config import Config
+
 logger = logging.getLogger(__name__)
 
 
 class SheetsIntegration:
     """Google Sheets integration for IBKR trading data."""
 
-    def __init__(self, credentials_file: str = None, credentials_dict: dict = None):
+    def __init__(self, credentials_dict: dict):
         """Initialize Google Sheets client."""
-        self.credentials_file = credentials_file
         self.credentials_dict = credentials_dict
         self.scopes = [
             "https://www.googleapis.com/auth/spreadsheets",
@@ -33,22 +34,14 @@ class SheetsIntegration:
     def _authenticate(self):
         """Authenticate with Google Sheets API."""
         try:
-            if self.credentials_dict:
-                # Use credentials from config.json
-                credentials = Credentials.from_service_account_info(
-                    self.credentials_dict, scopes=self.scopes
-                )
-                logger.info("Using Google Sheets credentials from config.json")
-            elif self.credentials_file and os.path.exists(self.credentials_file):
-                # Fallback to separate credentials file
-                credentials = Credentials.from_service_account_file(
-                    self.credentials_file, scopes=self.scopes
-                )
-                logger.info(f"Using Google Sheets credentials from {self.credentials_file}")
-            else:
-                raise FileNotFoundError(
-                    "Google Sheets credentials not found in config.json or credentials file"
-                )
+            if not self.credentials_dict:
+                raise ValueError("Google Sheets credentials not found in config.json")
+                
+            # Use credentials from config.json
+            credentials = Credentials.from_service_account_info(
+                self.credentials_dict, scopes=self.scopes
+            )
+            logger.info("Using Google Sheets credentials from config.json")
 
             self.client = gspread.authorize(credentials)
             logger.info("Successfully authenticated with Google Sheets API")
@@ -79,10 +72,17 @@ class SheetsIntegration:
     def read_all_records(self, worksheet) -> List[dict[str, Any]]:
         """Read all records from worksheet as list of dictionaries."""
         try:
-            return worksheet.get_all_records()
+            # Handle duplicate header issue by specifying expected headers
+            expected_headers = ['Status', 'Stock Symbol', 'Price', 'Amount', 'Qty to buy', 'Frequency', 'Log']
+            return worksheet.get_all_records(expected_headers=expected_headers)
         except Exception as e:
             logger.error(f"Failed to read records: {e}")
-            raise
+            # Fallback to default method if expected_headers fails
+            try:
+                return worksheet.get_all_records()
+            except Exception as fallback_error:
+                logger.error(f"Fallback read also failed: {fallback_error}")
+                raise
 
     def append_row(self, worksheet, row_data: List[Any]):
         """Append a new row to the worksheet."""
@@ -177,16 +177,17 @@ class SheetsIntegration:
             # Clear existing data (keep headers)
             worksheet.clear()
 
-            # Add headers
+            # Add headers from config
+            portfolio_headers = google_sheets_config.get('column_headers', {}).get('portfolio', {})
             headers = [
-                "Symbol",
-                "Position",
-                "Market Price",
-                "Market Value",
-                "Avg Cost",
-                "P&L",
-                "P&L %",
-                "Last Updated",
+                portfolio_headers.get('symbol', 'Symbol'),
+                portfolio_headers.get('position', 'Position'),
+                portfolio_headers.get('market_price', 'Market Price'),
+                portfolio_headers.get('market_value', 'Market Value'),
+                portfolio_headers.get('avg_cost', 'Avg Cost'),
+                portfolio_headers.get('pnl', 'P&L'),
+                portfolio_headers.get('pnl_percent', 'P&L %'),
+                portfolio_headers.get('last_updated', 'Last Updated'),
             ]
             worksheet.append_row(headers)
 
@@ -215,20 +216,13 @@ class SheetsIntegration:
 
 
 # Convenience function for quick setup
-def get_sheets_client(credentials_file: str = None) -> SheetsIntegration:
+def get_sheets_client() -> SheetsIntegration:
     """Get authenticated Google Sheets client."""
-    from .config import Config
-    
     config = Config()
     google_sheets_config = config.get_google_sheets_config()
     credentials_dict = google_sheets_config.get("credentials")
     
-    # Fallback to environment variable or parameter for credentials file
-    if not credentials_dict:
-        credentials_file = credentials_file or os.getenv("GOOGLE_SHEETS_CREDENTIALS_PATH", "google_sheets_credentials.json")
-    
     return SheetsIntegration(
-        credentials_file=credentials_file if not credentials_dict else None,
         credentials_dict=credentials_dict
     )
 
@@ -237,7 +231,9 @@ def get_sheets_client(credentials_file: str = None) -> SheetsIntegration:
 def example_read_sheet():
     """Example: Read data from Google Sheets."""
     sheets = get_sheets_client()
-    url = "https://docs.google.com/spreadsheets/d/1CwyNMN_YRhU5IaYaG1OXaBGzgoYkBtF5rc9sO9Nyw48/edit"
+    config = Config()
+    google_sheets_config = config.get_google_sheets_config()
+    url = google_sheets_config.get("spreadsheet_url")
 
     try:
         spreadsheet = sheets.open_spreadsheet_by_url(url)
@@ -256,16 +252,19 @@ def example_read_sheet():
 def example_write_trade():
     """Example: Log a trade to Google Sheets."""
     sheets = get_sheets_client()
-    url = "https://docs.google.com/spreadsheets/d/1CwyNMN_YRhU5IaYaG1OXaBGzgoYkBtF5rc9sO9Nyw48/edit"
+    config = Config()
+    google_sheets_config = config.get_google_sheets_config()
+    url = google_sheets_config.get("spreadsheet_url")
+    example_data = google_sheets_config.get("example_data", {})
 
     try:
         sheets.log_trade(
             spreadsheet_url=url,
-            symbol="AAPL",
-            side="BUY",
-            quantity=10,
-            price=150.00,
-            order_type="LMT",
+            symbol=example_data.get("symbol", "AAPL"),
+            side=example_data.get("side", "BUY"),
+            quantity=example_data.get("quantity", 10),
+            price=example_data.get("price", 150.00),
+            order_type=example_data.get("order_type", "LMT"),
         )
         print("Trade logged successfully!")
     except Exception as e:

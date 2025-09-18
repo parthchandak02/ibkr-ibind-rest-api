@@ -93,6 +93,10 @@ class Config:
         """Get general settings."""
         return self.config.get("settings", {})
     
+    def get_scheduling_config(self):
+        """Get scheduling configuration."""
+        return self.config.get("scheduling", {})
+    
     def get_api_base_url(self):
         """Get the complete API base URL."""
         settings = self.get_settings()

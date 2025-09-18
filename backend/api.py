@@ -192,6 +192,49 @@ def get_orders():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@app.route("/order/<order_id>", methods=["DELETE"])
+def cancel_order(order_id):
+    """Cancel an existing order by order ID."""
+    client = get_ibkr_client()
+    if not client:
+        return (
+            jsonify({"status": "error", "message": "IBKR client not available."}),
+            500,
+        )
+
+    # Ensure account ID is set
+    if not client.account_id:
+        accounts = client.portfolio_accounts().data
+        if accounts and len(accounts) > 0:
+            client.account_id = accounts[0]["accountId"]
+        else:
+            return (
+                jsonify({"status": "error", "message": "No account ID available"}),
+                400,
+            )
+
+    try:
+        # Cancel the order using IBKR client - correct ibind usage
+        response = client.cancel_order(order_id, client.account_id)
+        logger.info(f"Order {order_id} cancelled successfully")
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Order {order_id} cancelled successfully",
+            "order_id": order_id,
+            "data": response.data
+        })
+    except Exception as e:
+        logger.error(f"Order cancellation failed for {order_id}: {e}")
+        return (
+            jsonify({
+                "status": "error", 
+                "message": f"Failed to cancel order {order_id}: {str(e)}"
+            }),
+            500,
+        )
+
+
 @app.route("/order", methods=["POST"])
 def place_order():
     """Place a single order."""
@@ -277,13 +320,13 @@ def place_order():
         tif=tif,
     )
 
-    # Define standard answers for IBKR prompts
+    # Define standard answers for IBKR prompts (based on Voyz ibind examples)
     answers = {
         QuestionType.PRICE_PERCENTAGE_CONSTRAINT: True,
         QuestionType.ORDER_VALUE_LIMIT: True,
         QuestionType.STOP_ORDER_RISKS: True,
-        "Unforeseen new question": True,
-        "Market Order Confirmation": True,
+        QuestionType.MISSING_MARKET_DATA: True,
+        "Unforeseen new question": True,  # Used in official Voyz examples
     }
 
     try:
@@ -408,7 +451,7 @@ def place_order_by_symbol():
 
         order_request = make_order_request(**order_params)
 
-        # Define standard answers including cash quantity support
+        # Define standard answers including market order confirmation (based on Voyz ibind examples)
         answers = {
             QuestionType.PRICE_PERCENTAGE_CONSTRAINT: True,
             QuestionType.ORDER_VALUE_LIMIT: True,
@@ -416,8 +459,10 @@ def place_order_by_symbol():
             QuestionType.CASH_QUANTITY: True,  # Accept cash quantity details
             QuestionType.CASH_QUANTITY_ORDER: True,  # Accept cash quantity orders
             QuestionType.MISSING_MARKET_DATA: True,  # Accept missing market data warning
-            "Unforeseen new question": True,
-            "Market Order Confirmation": True,
+            QuestionType.ORDER_SIZE_LIMIT: True,  # Accept order size limits
+            QuestionType.MANDATORY_CAP_PRICE: True,  # Accept mandatory cap price
+            "Unforeseen new question": True,  # Used in official Voyz examples
+            "Market Order Confirmation": True,  # Accept market order risks
         }
 
         response = client.place_order(order_request, answers).data

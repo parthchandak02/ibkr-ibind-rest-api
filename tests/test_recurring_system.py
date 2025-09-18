@@ -83,12 +83,12 @@ def test_discord_notification():
         
         manager = RecurringOrdersManager()
         
-        # Send test notification
-        manager.send_discord_notification(
-            orders_executed=0,
-            successes=0, 
-            failures=0,
-            details=["🧪 Test notification from recurring orders system"]
+        # Send test notification using professional implementation
+        from backend.discord_notifier import DiscordNotifier
+        notifier = DiscordNotifier()
+        notifier.send_simple_notification(
+            message="🧪 Test notification from recurring orders system",
+            is_error=False
         )
         
         print("✅ Discord notification sent successfully")

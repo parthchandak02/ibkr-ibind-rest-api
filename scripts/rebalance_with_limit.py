@@ -153,7 +153,7 @@ def execute_rebalance(dry_run=True, target_tickers=None):
 
     # Send all orders in a single API call
     try:
-        headers = {'X-API-Key': api_key, 'Content-Type': 'application/json'}
+        headers = {'Content-Type': 'application/json'}  # No API key needed for local automation
         response = requests.post(
             f"{API_BASE_URL}/orders/bulk",
             headers=headers,
