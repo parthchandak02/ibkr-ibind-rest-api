@@ -1,382 +1,205 @@
 # 🚀 IBKR Enterprise Trading System
 
-**Professional automated recurring orders for Interactive Brokers.** Enterprise-grade architecture with sequential Google Sheets logging, rich Discord notifications, and quantity-based order execution.
+[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![IBKR](https://img.shields.io/badge/IBKR-API-orange.svg)](https://www.interactivebrokers.com/)
 
----
+**Professional automated recurring orders for Interactive Brokers.** Enterprise-grade Python system with quantity-based execution, sequential Google Sheets logging, and rich Discord notifications.
 
-## ⚡ **Quick Start**
+## ✨ Features
+
+- 🔄 **Automated Trading** - Daily/Weekly/Monthly recurring orders
+- 📊 **Google Sheets Integration** - Order management and execution logging  
+- 📧 **Discord Notifications** - Professional rich embed alerts
+- 🏦 **IBKR API** - Direct integration with Interactive Brokers
+- 🎯 **Quantity-Based Orders** - Precise share control (no fractional issues)
+- 📈 **Sequential Logging** - Complete execution history tracking
+- ⚙️ **Enterprise Architecture** - Type-safe, validated, configurable
+
+## 🚀 Quick Start
 
 ```bash
-# 1. Clone and install
+# Clone and setup
 git clone https://github.com/parthchandak02/ibkr-ibind-rest-api.git
 cd ibkr-ibind-rest-api
 uv sync
 
-# 2. Configure credentials (see setup below)
-# 3. Start service
-uv run python service.py start
-```
-
-**Your orders will now execute automatically every day at 9 AM EST.**
-
----
-
-## 🔧 **Complete Setup Guide**
-
-### **Step 1: IBKR OAuth 1.0a Setup**
-
-**✅ Good News**: With ibind library, OAuth setup is much simpler than generic IBKR setup!
-
-**Prerequisites:**
-- IBKR "Pro" account (individual accounts work too!)
-- `openssl` installed on your machine
-
-1. **Generate OAuth Keys:**
-   ```bash
-   # Generate all required keys
-   openssl genrsa -out private_signature.pem 2048
-   openssl rsa -in private_signature.pem -outform PEM -pubout -out public_signature.pem
-   openssl genrsa -out private_encryption.pem 2048
-   openssl rsa -in private_encryption.pem -outform PEM -pubout -out public_encryption.pem
-   openssl dhparam -out dhparam.pem 2048
-   ```
-
-2. **IBKR OAuth Setup:**
-   - Visit: [IBKR OAuth Setup Page](https://ndcdyn.interactivebrokers.com/sso/Login?action=OAUTH&RL=1&ip2loc=US)
-   - **Consumer Key**: Choose your own 9-character password (A-Z only)
-   - **Upload Public Keys**: `public_signature.pem`, `public_encryption.pem`, `dhparam.pem`
-   - **Generate Tokens**: Copy Access Token & Access Token Secret (⚠️ won't reappear!)
-   - **Enable OAuth Access**: Toggle the switch
-
-3. **Extract DH Prime:**
-   ```python
-   # Save as extract_dh_prime.py and run
-   import subprocess, re
-   result = subprocess.run(["openssl", "dhparam", "-in", "dhparam.pem", "-text"], 
-                          capture_output=True, text=True).stdout
-   match = re.search(r"(?:prime|P):\s*((?:\s*[0-9a-fA-F:]+\s*)+)", result)
-   print(re.sub(r"[\s:]", "", match.group(1)) if match else "No prime found.")
-   ```
-
-4. **OAuth Files Placement:**
-   ```bash
-   # Place private keys in live_trading_oauth_files directory
-   ls -la live_trading_oauth_files/private_*.pem
-   # Should show: private_encryption.pem, private_signature.pem
-   ```
-
-**Note**: File paths are automatically configured in `config.json` - no manual path setup needed!
-
-**📚 Official Guide:**
-- [Voyz ibind OAuth 1.0a Wiki](https://github.com/Voyz/ibind/wiki/OAuth-1.0a) (Complete setup guide)
-- [ibind OAuth Example](https://github.com/Voyz/ibind/blob/master/examples/rest_08_oauth.py)
-
-### **Step 2: Google Sheets Setup**
-
-1. **Google Cloud Console Setup:**
-   - Go to [Google Cloud Console](https://console.cloud.google.com)
-   - Create a new project (or select existing one)
-   - Navigate to **APIs & Services → Library**
-   - Enable **Google Sheets API** and **Google Drive API**
-
-2. **Create Service Account:**
-   - Go to **IAM & Admin → Service Accounts**  
-   - Click **+ CREATE SERVICE ACCOUNT**
-   - Give it a name (e.g., "sheets-automation")
-   - Grant role: **Editor** (for Google Sheets access)
-
-3. **Download Credentials:**
-   - Click on your service account → **Keys** tab
-   - **ADD KEY** → **Create new key** → **JSON**
-   - **Copy the JSON content** (don't save as separate file)
-
-4. **Create & Share Google Sheet:**
-   - Create sheet with columns: `Status | Stock Symbol | Price | Amount | Qty to buy | Frequency | Log`
-   - Click **Share** → Add service account email (from JSON)
-   - Grant **Editor** permissions
-   - Copy sheet URL
-
-5. **Add to config.json:**
-   - Paste the JSON credentials directly into `config.json` under `google_sheets.credentials`
-   - Add your sheet URL to `google_sheets.spreadsheet_url`
-
-**📚 Resources:**
-- [Google Sheets API Quickstart](https://developers.google.com/sheets/api/quickstart/python)
-- [Service Account Authentication](https://cloud.google.com/iam/docs/service-accounts-create)
-
-### **Step 3: Discord Notifications**
-
-1. **Create Discord Webhook:**
-   - Open your Discord server
-   - Right-click on the channel where you want notifications
-   - **Edit Channel** → **Integrations** → **Webhooks**
-   - Click **New Webhook** 
-   - Copy the webhook URL (starts with `https://discord.com/api/webhooks/...`)
-
-2. **Add to config.json:**
-   - Paste webhook URL into `config.json` under `discord.webhook_url`
-
-**📚 Resources:**
-- [Discord Webhook Setup Guide](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks)
-
-### **Step 4: Create config.json File**
-
-Copy `config.example.json` to `config.json` and fill in your credentials:
-
-```bash
+# Configure (see setup below)
 cp config.example.json config.json
-```
+# Edit config.json with your credentials
 
-Edit `config.json` with your actual credentials. **This single file contains everything:**
-
-- IBKR OAuth credentials (consumer key, access tokens, DH prime)
-- Google Sheets service account credentials (no separate JSON file needed!)
-- Discord webhook URL
-- Google Sheet URL  
-- All settings and configurations
-
-**✅ No environment variables needed!** Everything is in one config file.
-
-### **Step 5: Verification & Launch**
-
-```bash
-# 1. Verify config.json exists and is valid
-uv run python -c "from backend.config import Config; c=Config(); print('✅ config.json loaded successfully')"
-
-# 2. Test IBKR connection
-uv run python -c "from backend.utils import get_ibkr_client; print('✅ IBKR connected' if get_ibkr_client() else '❌ IBKR failed')"
-
-# 3. Test Google Sheets connection  
-uv run python -c "from backend.sheets_integration import get_sheets_client; print('✅ Sheets connected')"
-
-# 4. Test recurring orders manually (safe test)
-uv run python service.py execute
-
-# 5. Start persistent service
+# Start system
 uv run python service.py start
 
-# 6. Verify service is running
-uv run python service.py status
+# Verify running
+curl http://127.0.0.1:8082/health
 ```
 
-### **🎯 Final Verification:**
+**Your orders execute automatically at 9 AM EST daily/weekly/monthly.**
+
+## 📋 Setup
+
+### 1. IBKR OAuth Setup
+
+Generate keys and configure IBKR OAuth 1.0a:
+
 ```bash
-# Check all systems
-    curl http://127.0.0.1:8082/health                    # API health
-    curl http://127.0.0.1:8081/service/status | head -20 # Service status
+# Generate required keys
+openssl genrsa -out private_signature.pem 2048
+openssl genrsa -out private_encryption.pem 2048
+openssl dhparam -out dhparam.pem 2048
 
-# If both return healthy JSON responses, you're ready! 🚀
+# Move to oauth directory
+mkdir -p live_trading_oauth_files
+mv private_*.pem live_trading_oauth_files/
 ```
 
-**🎯 Service Management:**
-```bash
-# Check if service is running
-uv run python service.py status
+**IBKR Portal Setup:**
+1. Visit [IBKR OAuth Setup](https://ndcdyn.interactivebrokers.com/sso/Login?action=OAUTH&RL=1)
+2. Upload public keys (`public_signature.pem`, `public_encryption.pem`, `dhparam.pem`)
+3. Copy Consumer Key, Access Token, Access Token Secret
+4. Extract DH Prime with: `openssl dhparam -in dhparam.pem -text | grep -A 50 "prime:" | tr -d '\n :' | sed 's/prime//'`
 
-# Stop the service
-uv run python service.py stop
+### 2. Google Sheets Setup
 
-# Restart the service  
-uv run python service.py restart
+1. **Google Cloud Console:**
+   - Create project → Enable Sheets API & Drive API
+   - Create Service Account → Download JSON credentials
+
+2. **Sheet Setup:**
+   - Create sheet with columns: `Status | Stock Symbol | Price | Amount | Qty to buy | Frequency | Log`
+   - Share with service account email (Editor permissions)
+
+### 3. Discord Webhook
+
+1. Discord Server → Channel Settings → Webhooks → New Webhook
+2. Copy webhook URL
+
+### 4. Configuration
+
+Edit `config.json` with your credentials:
+
+```json
+{
+  "live_trading": { "oauth": { /* IBKR credentials */ } },
+  "google_sheets": { "credentials": { /* Service account JSON */ } },
+  "discord": { "webhook_url": "https://discord.com/api/webhooks/..." }
+}
 ```
 
----
+## 📊 Usage
 
-## 📊 **Usage**
-
-### **Google Sheet Format:**
+### Google Sheet Format
 | Status | Stock Symbol | Price | Amount | Qty to buy | Frequency | Log |
 |--------|-------------|-------|--------|-----------|-----------|-----|
 | Active | AAPL | 175.50 | 175.50 | 1 | Weekly | *(auto-filled)* |
 | Active | WDH | 1.90 | 1.90 | 1 | Daily | *(auto-filled)* |
 
-### **Frequency Rules:**
+### Frequency Options
 - **Daily** → Every day at 9 AM EST
 - **Weekly** → Mondays at 9 AM EST  
 - **Monthly** → 1st of month at 9 AM EST
 
-### **Service Management:**
+### Service Management
 ```bash
-# Start the service (daemon mode)
-uv run python service.py start
-
-# Check service status
-uv run python service.py status
-
-# Stop the service
-uv run python service.py stop
-
-# Restart the service
-uv run python service.py restart
-
-# View live logs
-uv run python service.py logs -f
-
-# Manual test execution
-uv run python service.py execute
+uv run python service.py start    # Start automated system
+uv run python service.py status   # Check if running
+uv run python service.py stop     # Stop system
+uv run python service.py logs     # View execution logs
 ```
 
----
-
-## 🎯 **API Endpoints**
-
-| Endpoint | Purpose |
-|----------|---------|
-| `GET /health` | System health check |
-| `GET /account` | Account info + positions |
-| `POST /order/symbol` | Place order by symbol |
-| `POST /recurring/execute` | Manual trigger |
-| `GET /recurring/status` | Automation status |
-
-### **Example Usage:**
+### Manual Execution
 ```bash
-    # Place order
-    curl -X POST http://127.0.0.1:8082/order/symbol \
-      -H "Content-Type: application/json" \
-      -d '{"symbol":"AAPL","side":"BUY","quantity":1,"order_type":"MKT"}'
+# Test single execution
+curl -X POST http://127.0.0.1:8082/recurring/execute
 
-    # Trigger recurring orders
-    curl -X POST http://127.0.0.1:8082/recurring/execute
+# View orders
+curl http://127.0.0.1:8082/orders
 ```
 
----
+## 🔧 API Endpoints
 
-## 📱 **What You Get**
+| Endpoint | Method | Purpose |
+|----------|---------|---------|
+| `/health` | GET | System health |
+| `/orders` | GET | List orders |
+| `/order/symbol` | POST | Place order |
+| `/recurring/execute` | POST | Trigger orders |
+| `/recurring/status` | GET | System status |
 
-### **Automated Execution:**
-- ✅ **Daily orders** execute every day at 9 AM EST
-- ✅ **Weekly orders** execute Mondays at 9 AM EST
-- ✅ **Monthly orders** execute 1st of month at 9 AM EST
+## 📱 What You Get
 
-### **Discord Notifications:**
-```
-🚀 Recurring Orders Executed Successfully
+**Automated Execution:**
+- Daily orders → Execute every day at 9 AM EST
+- Weekly orders → Execute Mondays at 9 AM EST  
+- Monthly orders → Execute 1st of month at 9 AM EST
 
-📊 Summary: Total: 2, Success: 2, Failed: 0
-💰 Total Investment: $621.25
+**Discord Notifications:**
+- 🟢 Professional rich embeds with order details
+- 📊 Execution summary with success/failure counts
+- 🏦 Order IDs and market prices included
 
-📋 Order Details:
-🟢 AAPL: 1 shares @ $175.50 ($175.50)
-   📋 Order ID: REC123456789
-🟢 SPY: 1 shares @ $445.75 ($445.75)
-   📋 Order ID: REC123456790
-```
+**Google Sheets Logging:**
+- Sequential execution history in columns G→H→I→J
+- Format: `✅ 2025-09-18 09:00:15: 1 shares @ $175.50 | ID: 1234567`
 
-### **Sequential Google Sheets Logging:**
-```
-Column G: ✅ 2025-09-18 09:00:15: 1 shares @ $175.50 ($175.50) | ID: REC123456789
-Column H: ✅ 2025-09-19 09:00:15: 1 shares @ $172.30 ($172.30) | ID: REC123456790
-Column I: (Next execution will log here)
-```
+## ⚠️ Troubleshooting
 
----
+| Issue | Solution |
+|-------|----------|
+| "IBKR client not available" | Check OAuth files in `live_trading_oauth_files/` |
+| "Google Sheets auth failed" | Verify service account has Editor access to sheet |
+| "Service not running" | Run `uv run python service.py status` |
+| "Config errors" | Validate JSON: `python -m json.tool config.json` |
 
-## 🔒 **Security**
-
-- **Local only** - API runs on 127.0.0.1 (no external access)
-- **No authentication** - designed for trusted local environment  
-- **Service account** - Google Sheets access via service account
-- **OAuth1a** - IBKR authentication via industry standard
-
----
-
-## 🎯 **Perfect For**
-
-✅ **Dollar-cost averaging** - regular recurring purchases  
-✅ **Portfolio rebalancing** - systematic adjustments  
-✅ **Automated investing** - set-and-forget strategies  
-✅ **Personal trading** - local automation without cloud dependencies  
-
----
-
-## 📚 **Project Structure**
-
-```
-ibkr-ibind-rest-api/
-├── backend/                      # Core trading logic & API
-├── service/                      # Background automation daemon  
-├── docs/                        # Documentation
-├── examples/                    # Usage examples
-├── tests/                       # Test suite
-├── logs/                        # Service logs (auto-created)
-├── run_server.py               # API server
-├── service.py                  # Service manager
-├── pyproject.toml             # Dependencies & project config
-├── config.json                # 🎯 ALL CREDENTIALS (IBKR, Sheets, Discord)
-├── config.example.json        # Template with examples
-├── private_encryption.pem      # IBKR OAuth private key
-└── private_signature.pem       # IBKR OAuth private key
+**Health Checks:**
+```bash
+curl http://127.0.0.1:8082/health        # API health
+curl http://127.0.0.1:8081/service/status # Service status
 ```
 
-**✅ Simplified**: Only 2 credential files needed (config.json + private keys)
-
----
-
-## 🧪 **Testing**
+## 🛠️ Development
 
 ```bash
-# Run test suite
-uv run pytest tests/
+# Install development dependencies
+uv sync --dev
 
-# Test specific components  
-uv run python tests/test_recurring_system.py
+# Run tests
+uv run pytest
+
+# Format code
+uv run ruff format .
+
+# Lint code
+uv run ruff check .
 ```
 
----
+## 📁 Project Structure
 
-## 📞 **Troubleshooting**
-
-### **Common Issues:**
-
-1. **"IBKR client not available"**
-   - ✅ Check `config.json` has complete IBKR OAuth section
-   - ✅ Verify `private_encryption.pem` and `private_signature.pem` exist in project root
-   - ✅ Confirm OAuth access is enabled in IBKR portal
-   - ✅ Test: `uv run python -c "from backend.config import Config; print(Config().get_oauth_config())"`
-
-2. **"Google Sheets authentication failed"**
-   - ✅ Check `config.json` has complete `google_sheets.credentials` section
-   - ✅ Verify service account email has editor access to your sheet
-   - ✅ Confirm spreadsheet URL is in `config.json`
-   - ✅ Test: `uv run python -c "from backend.config import Config; print(Config().get_google_sheets_config())"`
-
-3. **"Service not running"**
-   - ✅ Check: `uv run python service.py status`
-   - ✅ View logs: `uv run python service.py logs`
-   - ✅ Restart: `uv run python service.py restart`
-
-4. **"Configuration file errors"**
-   - ✅ Check `config.json` syntax: `python -m json.tool config.json`
-   - ✅ Verify all required sections exist
-   - ✅ Compare with `config.example.json` structure
-
-### **Health Checks:**
-```bash
-# API health
-    curl http://127.0.0.1:8082/health
-
-# Service status  
-curl http://127.0.0.1:8081/service/status
+```
+├── backend/          # Core trading logic & API
+├── service/          # Background automation service
+├── scripts/          # Utility tools (monitoring, cleanup)
+├── config.json       # All credentials & settings
+└── service.py        # Service management
 ```
 
----
+## 🔒 Security
 
-## 🏁 **You're All Set!**
+- **Local only** - Runs on 127.0.0.1 (no external access)
+- **No API authentication** - Designed for trusted local environment
+- **Credentials in config.json** - Keep this file secure and local
 
-Once everything is configured:
+## 📄 License
 
-1. **📊 Your recurring orders execute automatically at 9 AM EST**
-2. **📱 Discord notifications keep you informed of all trades**  
-3. **📋 Google Sheets logs every transaction with details**
-4. **⚙️ Service runs in background reliably**
-5. **🔒 Everything stays local and secure**
+MIT License - see [LICENSE](LICENSE) file.
 
-### **Next Steps:**
-- Add your stocks to the Google Sheet with desired frequencies (Daily/Weekly/Monthly)
-- Monitor Discord for execution notifications  
-- Use `uv run python service.py status` to check system health
-- Scale your automation as needed
+## 🆘 Support
+
+- 📖 [Documentation](docs/)
+- 🐛 [Issues](https://github.com/parthchandak02/ibkr-ibind-rest-api/issues)
+- 💬 [Discussions](https://github.com/parthchandak02/ibkr-ibind-rest-api/discussions)
 
 ---
 
-**🚀 Enterprise-grade automated trading made simple.**
+**🎯 Enterprise-grade automated trading made simple.**
