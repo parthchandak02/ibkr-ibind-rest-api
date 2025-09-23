@@ -3,11 +3,12 @@
 Interactive IBKR Orders Dashboard
 A beautiful, interactive terminal application to view and manage open orders using Rich.
 """
+import argparse
 import requests
 import time
 import sys
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -310,10 +311,23 @@ def interactive_dashboard():
     finally:
         console.print("\n[bold green]✨ Thanks for using IBKR Orders Dashboard![/bold green]")
 
-def display_orders():
-    """Legacy function - redirects to interactive dashboard"""
+def display_orders(sort_option: Optional[str] = None, *, interactive: bool = False, reverse: bool = False):
+    """Render orders using a provided sort option or prompt the user.
+
+    Args:
+        sort_option: Optional key from OrdersConfig.SORT_OPTIONS ("1"-"7").
+        interactive: When True, immediately launch the interactive dashboard.
+        reverse: When True, apply descending sort order for static view.
+    """
     console = Console()
     
+    if interactive:
+        interactive_dashboard()
+        return
+
+    # When no sort option provided via CLI, fall back to prompt
+    provided_choice = sort_option or ""
+
     # Show sort options menu
     console.print(create_header_panel())
     console.print()
@@ -326,7 +340,11 @@ def display_orders():
         box=box.ROUNDED
     ))
     
-    choice = Prompt.ask(
+    if provided_choice not in OrdersConfig.SORT_OPTIONS and provided_choice != "":
+        console.print(f"[bold red]❌ Invalid sort option '{provided_choice}'. Falling back to prompt.[/bold red]")
+        provided_choice = ""
+
+    choice = provided_choice or Prompt.ask(
         "Select sort option (1-7) or press Enter for interactive mode",
         choices=list(OrdersConfig.SORT_OPTIONS.keys()) + [""],
         default=""
@@ -339,11 +357,37 @@ def display_orders():
         orders = fetch_orders()
         if orders:
             sort_by = OrdersConfig.SORT_OPTIONS[choice][0]
-            table = create_orders_table(orders, sort_by)
+            table = create_orders_table(orders, sort_by, reverse)
             console.print(create_stats_panel(orders))
             console.print(table)
         else:
             console.print("[bold red]❌ No orders found or error connecting to API.[/bold red]")
 
 if __name__ == "__main__":
-    display_orders() 
+    parser = argparse.ArgumentParser(description="Interactive IBKR orders dashboard")
+    parser.add_argument(
+        "sort_option",
+        nargs="?",
+        choices=list(OrdersConfig.SORT_OPTIONS.keys()),
+        help="Optional sort option to apply automatically (1-7)"
+    )
+    parser.add_argument(
+        "--interactive",
+        "-i",
+        action="store_true",
+        help="Launch the full interactive dashboard"
+    )
+    parser.add_argument(
+        "--reverse",
+        "-r",
+        action="store_true",
+        help="Sort in descending order for static view"
+    )
+
+    args = parser.parse_args()
+
+    display_orders(
+        sort_option=args.sort_option,
+        interactive=args.interactive,
+        reverse=args.reverse,
+    )
