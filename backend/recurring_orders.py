@@ -97,6 +97,11 @@ class RecurringOrdersManager:
         # Initialize clients
         self._initialize_clients()
     
+    @property
+    def timezone(self):
+        """Get timezone object from configuration."""
+        return pytz.timezone(self._scheduling_config.timezone)
+    
     def _load_configurations(self) -> None:
         """Load all required configurations."""
         try:
@@ -201,7 +206,7 @@ class RecurringOrdersManager:
         Returns:
             True if should execute today
         """
-        now_est = datetime.now(EST)
+        now_est = datetime.now(self.timezone)
         
         if frequency.lower() == 'daily':
             return True
@@ -746,21 +751,21 @@ class RecurringOrdersManager:
             logger.warning("Scheduler is already running")
             return
         
-        self.scheduler = BackgroundScheduler(timezone=EST)
+        self.scheduler = BackgroundScheduler(timezone=self.timezone)
         
         # Schedule daily check (configurable time)
         # This will check for any orders that should run today
-        daily_time = scheduling_config.get('daily_check_time', {'hour': 9, 'minute': 0})
+        daily_time = self._scheduling_config.daily_check_time
         self.scheduler.add_job(
             func=lambda: self.execute_recurring_orders(),
             trigger=CronTrigger(
                 hour=daily_time.get('hour', 9), 
                 minute=daily_time.get('minute', 0), 
-                timezone=EST
+                timezone=self.timezone
             ),
             id='daily_recurring_orders',
             name='Daily Recurring Orders Check',
-            misfire_grace_time=scheduling_config.get('grace_time_minutes', 5) * 60  # Grace time from config
+            misfire_grace_time=self._scheduling_config.grace_time_minutes * 60  # Grace time from config
         )
         
         # Start the scheduler
