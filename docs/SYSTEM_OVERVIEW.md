@@ -92,7 +92,7 @@ curl -X POST http://127.0.0.1:8082/recurring/test-notification
 
 ## 📱 **Discord Integration**
 
-**Webhook URL:** https://discord.com/api/webhooks/REDACTED/REDACTED
+**Webhook URL:** Set via `DISCORD_WEBHOOK_URL` environment variable (see `config.example.json`)
 
 ### **Notification Types:**
 - ✅ **Successful executions** with order details
