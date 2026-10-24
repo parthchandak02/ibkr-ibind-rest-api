@@ -171,3 +171,5 @@ dist/
 # Frontend build artifacts
 frontend/dist/
 frontend/node_modules/
+# Local ladder CSV for scripts/place_orders_from_csv.py
+ladder.csv

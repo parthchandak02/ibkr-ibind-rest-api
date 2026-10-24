@@ -78,7 +78,7 @@ Each result is written to the next free log cell of that row, like
 - **Sheet-driven recurring buys.** Quantity-based market orders on a daily, weekly or monthly schedule, with the run history kept in the sheet.
 - **Discord summaries.** A rich embed after each run, plus a "nothing to do today" note listing what comes next.
 - **Service manager.** `service.py start | stop | restart | status | logs | execute`, a status endpoint, and a systemd unit installer.
-- **Terminal tools.** A Rich orders dashboard with sorting and live refresh, a duplicate-order canceller, a CSV ladder placer and a limit-order rebalancer.
+- **Terminal tools.** A Rich orders dashboard with sorting and live refresh, a duplicate-order canceller, a CSV ladder placer (`scripts/place_orders_from_csv.py [ladder.csv] [--symbols ...]`) and a limit-order rebalancer. Ports come from `api_port` / `service_port` in `config.json`.
 - **ibind examples.** Eleven REST and WebSocket examples from basic queries to bracket orders and options chains in `examples/`.
 
 ## Run it

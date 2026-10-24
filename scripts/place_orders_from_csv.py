@@ -1,8 +1,17 @@
 #!/usr/bin/env python3
-"""Utility to place laddered limit buys from parth-buy-2.csv via API."""
+"""Utility to place laddered limit buys from a CSV via the local REST API.
+
+Usage:
+    uv run python scripts/place_orders_from_csv.py [CSV_PATH] [--symbols AAA,BBB] [--api-url URL]
+
+CSV_PATH defaults to $LADDER_CSV or "ladder.csv". Each row: no, name, SYMBOL, qty1, price1, qty2, price2, ...
+The API URL defaults to $IBKR_API_URL, then config.json's api_port, then http://127.0.0.1:8082.
+"""
 from __future__ import annotations
 
+import argparse
 import csv
+import os
 import sys
 import time
 from dataclasses import dataclass
@@ -23,24 +32,28 @@ from rich.progress import (
 from rich.table import Table
 
 
-CSV_PATH = "parth-buy-2.csv"
-API_URL = "http://127.0.0.1:8082/order/symbol"
+DEFAULT_CSV_PATH = os.getenv("LADDER_CSV", "ladder.csv")
+DEFAULT_API_PORT = 8082
+ORDER_ENDPOINT = "/order/symbol"
 REQUEST_TIMEOUT = 20
 REQUEST_PAUSE_SECONDS = 0.35  # throttle between API calls
 
-# Symbols to submit (the focus subset approved by user)
-TARGET_SYMBOLS = {
-    "ISRA",
-    "SHLD",
-    "WAR",
-    "PPA",
-    "MISL",
-    "AHR",
-    "PLD",
-    "EWT",
-    "FLTW",
-    "EWS",
-}
+
+def default_api_base_url() -> str:
+    """$IBKR_API_URL, else config.json's api_port, else 127.0.0.1:8082."""
+    env_url = os.getenv("IBKR_API_URL")
+    if env_url:
+        return env_url.rstrip("/")
+    try:
+        sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+        from backend.config import Config
+
+        return Config().get_api_base_url()
+    except Exception:  # noqa: BLE001 - config.json is optional for this script
+        return f"http://127.0.0.1:{DEFAULT_API_PORT}"
+
+
+API_URL = default_api_base_url() + ORDER_ENDPOINT
 
 console = Console()
 
@@ -69,8 +82,8 @@ class OrderResult:
     order_tag: Optional[str] = None
 
 
-def load_orders(csv_path: str) -> Dict[str, List[OrderSpec]]:
-    """Return mapping of symbol -> ladder OrderSpec list for target symbols."""
+def load_orders(csv_path: str, target_symbols: Optional[set] = None) -> Dict[str, List[OrderSpec]]:
+    """Return mapping of symbol -> ladder OrderSpec list (all symbols, or only target_symbols)."""
     results: Dict[str, List[OrderSpec]] = {}
     with open(csv_path) as f:
         reader = csv.reader(f)
@@ -81,7 +94,7 @@ def load_orders(csv_path: str) -> Dict[str, List[OrderSpec]]:
             if len(values) < 4:
                 continue
             symbol = values[2]
-            if symbol not in TARGET_SYMBOLS:
+            if target_symbols and symbol not in target_symbols:
                 continue
             pairs = values[3:]
             if len(pairs) % 2 != 0:
@@ -174,7 +187,24 @@ def render_symbol_summary(symbol: str, results: Iterable[OrderResult]) -> None:
     console.print(Panel(table, title=header, title_align="left", border_style="bright_blue"))
 
 
+def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Place laddered limit buys from a CSV.")
+    parser.add_argument("csv_path", nargs="?", default=DEFAULT_CSV_PATH,
+                        help="Ladder CSV (default: $LADDER_CSV or ladder.csv)")
+    parser.add_argument("--symbols", default="",
+                        help="Comma-separated symbols to place (default: every symbol in the CSV)")
+    parser.add_argument("--api-url", default=None,
+                        help="REST API base URL (default: $IBKR_API_URL or config.json api_port)")
+    return parser.parse_args(argv)
+
+
 def main() -> None:
+    global API_URL
+    args = parse_args()
+    if args.api_url:
+        API_URL = args.api_url.rstrip("/") + ORDER_ENDPOINT
+    target_symbols = {s.strip().upper() for s in args.symbols.split(",") if s.strip()} or None
+
     console.print(
         Panel(
             Align.center("Automated Ladder Placement", vertical="middle"),
@@ -183,7 +213,11 @@ def main() -> None:
         )
     )
 
-    ladders = load_orders(CSV_PATH)
+    if not os.path.isfile(args.csv_path):
+        console.print(f"[bold red]CSV not found: {args.csv_path}[/bold red]")
+        sys.exit(1)
+
+    ladders = load_orders(args.csv_path, target_symbols)
     if not ladders:
         console.print("[bold red]No matching symbols found in CSV.[/bold red]")
         sys.exit(1)
