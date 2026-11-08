@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 """
-Test script for Google Sheets integration.
-Run this to verify your setup is working correctly.
+Manual check for the Google Sheets integration.
+Run it to verify your setup: uv run python scripts/check_sheets_setup.py [SHEET_URL]
+It writes one test row to the sheet, so it is not part of the pytest suite.
 """
 
 import os
 import sys
 from datetime import datetime
 
-# Add backend to path
-sys.path.append('backend')
+# Make the repo root importable so backend is loaded as a package
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
-from sheets_integration import get_sheets_client
+from backend.sheets_integration import get_sheets_client
 
 
-def test_authentication():
+def check_authentication():
     """Test if we can authenticate with Google Sheets."""
     print("🔐 Testing authentication...")
     
@@ -31,7 +32,7 @@ def test_authentication():
         return None
 
 
-def test_sheet_access(sheets, sheet_url):
+def check_sheet_access(sheets, sheet_url):
     """Test if we can access the specified sheet."""
     print("📊 Testing sheet access...")
     
@@ -53,7 +54,7 @@ def test_sheet_access(sheets, sheet_url):
         return None, None
 
 
-def test_read_data(sheets, worksheet):
+def check_read_data(sheets, worksheet):
     """Test reading data from the sheet."""
     print("📖 Testing data reading...")
     
@@ -71,7 +72,7 @@ def test_read_data(sheets, worksheet):
         return False
 
 
-def test_write_data(sheets, worksheet):
+def check_write_data(sheets, worksheet):
     """Test writing data to the sheet."""
     print("✏️  Testing data writing...")
     
@@ -100,29 +101,29 @@ def main():
     print("🚀 Starting Google Sheets Integration Tests\n")
     
     # Your sheet URL - update this!
-    SHEET_URL = "https://docs.google.com/spreadsheets/d/1CwyNMN_YRhU5IaYaG1OXaBGzgoYkBtF5rc9sO9Nyw48/edit"
+    SHEET_URL = sys.argv[1] if len(sys.argv) > 1 else "https://docs.google.com/spreadsheets/d/1CwyNMN_YRhU5IaYaG1OXaBGzgoYkBtF5rc9sO9Nyw48/edit"
     
     # Test 1: Authentication
-    sheets = test_authentication()
+    sheets = check_authentication()
     if not sheets:
         return False
     
     print()
     
     # Test 2: Sheet Access
-    spreadsheet, worksheet = test_sheet_access(sheets, SHEET_URL)
+    spreadsheet, worksheet = check_sheet_access(sheets, SHEET_URL)
     if not worksheet:
         return False
     
     print()
     
     # Test 3: Read Data
-    read_success = test_read_data(sheets, worksheet)
+    read_success = check_read_data(sheets, worksheet)
     
     print()
     
     # Test 4: Write Data (optional - comment out if you don't want to modify the sheet)
-    write_success = test_write_data(sheets, worksheet)
+    write_success = check_write_data(sheets, worksheet)
     
     print("\n" + "="*50)
     if read_success and write_success:

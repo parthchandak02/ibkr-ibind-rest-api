@@ -50,8 +50,7 @@ ibind_rest_api/
 │
 ├── 🧪 Testing & Examples
 │   ├── tests/                     # Test suite
-│   │   ├── test_recurring_system.py
-│   │   └── test_sheets_integration.py
+│   │   └── test_recurring_system.py
 │   │
 │   └── examples/                  # Usage examples
 │       ├── rest_01_basic.py      # API usage examples
